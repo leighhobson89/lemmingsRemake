@@ -12,30 +12,51 @@ let oldLanguage = 'en';
 
 //CONSTANTS
 export let gameState;
+
+export const SCROLL_SPEED = 5;
+export const CANVAS_WIDTH = 800;
+export const CANVAS_HEIGHT = 600;
+export const LEVEL_WIDTH = 3000;
 export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
 export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
 export const NUMBER_OF_ENEMY_SQUARES = 10;
-export const INITIAL_SPEED_PLAYER = 4;
-export const INITIAL_SPEED_MOVING_ENEMY = 4;
+export const INITIAL_SPEED_LEMMING = 1;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
+export const LEMMING_WIDTH = 5;
+export const LEMMING_HEIGHT = 20;
+export const GRAVITY_SPEED = 4; //0.05
+export const FPS = 60;
+export const FRAME_DURATION = 1000 / FPS;
+export const COLLISION_CHECK_INTERVAL = 20;
 
-export const playerObject = {
+export function setLemmingsStartPosition({ x, y }) {
+    const lemming = getLemmingObject();
+    lemming.x = x;
+    lemming.y = y;
+}
+
+export const lemmingObject = {
     x: 100,
     y: 100,
-    width: 50,
-    height: 50,
-    dx: getInitialSpeedPlayer(),
-    dy: getInitialSpeedPlayer()
+    width: LEMMING_WIDTH,
+    height: LEMMING_HEIGHT,
+    dx: getInitialSpeedLemming(),
+    dy: getInitialSpeedLemming(),
+    facing: 'right',
+    gravity: true,
+    falling: true
 };
 
 //GLOBAL VARIABLES
+let brushRadius = 5;
 
 //FLAGS
 let audioMuted;
 let languageChangedFlag;
 let beginGameState = true;
 let gameInProgress = false;
+let paintMode = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
@@ -69,8 +90,16 @@ export function setElements() {
     };
 }
 
-export function getPlayerObject() {
-    return playerObject;
+export function setPaintMode(value) {
+    paintMode = value;
+}
+
+export function getPaintMode() {
+    return paintMode;
+}
+
+export function getLemmingObject() {
+    return lemmingObject;
 }
 
 export function setGameStateVariable(value) {
@@ -178,12 +207,8 @@ export function getNumberOfEnemySquares() {
     return NUMBER_OF_ENEMY_SQUARES;
 }
 
-export function getInitialSpeedPlayer() {
-    return INITIAL_SPEED_PLAYER;
-}
-
-export function getInitialSpeedMovingEnemy() {
-    return INITIAL_SPEED_MOVING_ENEMY;
+export function getInitialSpeedLemming() {
+    return INITIAL_SPEED_LEMMING;
 }
 
 export function getMaxAttemptsToDrawEnemies() {
@@ -214,3 +239,10 @@ export function setGameInProgress(value) {
     gameInProgress = value;
 }
 
+export function getBrushRadius() {
+    return brushRadius;
+}
+
+export function setBrushRadius(value) {
+    brushRadius = value;
+}
