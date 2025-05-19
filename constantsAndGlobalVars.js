@@ -33,6 +33,7 @@ export const COLLISION_CHECK_INTERVAL = 20;
 export const SPAWN_COLOR = { r: 255, g: 255, b: 0 };
 export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
 export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
+export const EXIT_COLOR = { r: 0, g: 255, b: 0 };
 
 
 export function setLemmingsStartPosition({ x, y }) {
@@ -69,7 +70,7 @@ export const lemmingObject = {
     dy: getInitialSpeedLemming(),
     facing: 'right',
     gravity: true,
-    falling: true,
+    state: 'falling',
     active: false,
     name: null
 };
@@ -84,7 +85,7 @@ export function getNewLemmingObject() {
     dy: getInitialSpeedLemming(),
     facing: 'right',
     gravity: true,
-    falling: true,
+    state: 'falling',
     active: false,
     name: null
   };
@@ -101,6 +102,8 @@ let cameraX = 0;
 let collisionPixels = null;
 let collisionCanvas = null;
 let collisionCtx = null;
+let numberOfLemmingsForCurrentLevel = 0;
+let lemmingsRescued = 0;
 
 //FLAGS
 let audioMuted;
@@ -424,4 +427,20 @@ export function setIsPainting(value) {
 
 export function getLemmingNames() {
     return lemmingNames;
+}
+
+export function setLemmingsRescued() {
+    lemmingsRescued++;
+}
+
+export function getLemmingsRescued() {
+    return lemmingsRescued;
+}
+
+export function setNumberOfLemmingsForCurrentLevel(value) {
+    numberOfLemmingsForCurrentLevel = value;
+}
+
+export function getNumberOfLemmingsForCurrentLevel() {
+    return numberOfLemmingsForCurrentLevel;
 }
