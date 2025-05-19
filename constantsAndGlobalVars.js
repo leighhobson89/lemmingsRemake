@@ -1,6 +1,4 @@
 //DEBUG
-export let debugFlag = false;
-export let debugOptionFlag = false;
 export let stateLoading = false;
 
 //ELEMENTS
@@ -33,6 +31,8 @@ export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
 export const SPAWN_COLOR = { r: 255, g: 255, b: 0 };
+export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
+export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
 
 
 export function setLemmingsStartPosition({ x, y }) {
@@ -47,6 +47,19 @@ export const lemmingLevelData = {
     }
 }
 
+export const lemmingNames = [
+  "Alex", "Bailey", "Casey", "Drew", "Elliot", "Finley", "Gray", "Harper", "Indigo", "Jesse",
+  "Kai", "Logan", "Morgan", "Nico", "Ocean", "Parker", "Quinn", "Riley", "Sawyer", "Taylor",
+  "Blake", "Cameron", "Dakota", "Emery", "Flynn", "Genesis", "Haven", "Ivory", "Jaden", "Kendall",
+  "Lane", "Marlow", "Nova", "Oakley", "Phoenix", "Quincy", "Reese", "Sage", "Tatum", "Urban",
+  "Vale", "Winter", "Xen", "Yale", "Zion", "Arden", "Blaine", "Charlie", "Devon", "Emerson",
+  "Frankie", "Gale", "Hayden", "Ira", "Jules", "Karter", "Lee", "Micah", "Noel", "Onyx",
+  "Peyton", "Quade", "Rory", "Skyler", "Terry", "Umber", "Vega", "Wren", "Xander", "Yael",
+  "Zane", "Ash", "Bryn", "Cruz", "Denver", "Ellis", "Florian", "Grayce", "Hollis", "Izzy",
+  "Jory", "Kris", "Lennon", "Marlo", "Nicolette", "Oak", "Pax", "Raine", "Sasha", "Toby",
+  "Urban", "Vail", "West", "Xavi", "Yanni", "Zephyr", "Ari", "Blair", "Cyan", "Dallas"
+];
+
 export const lemmingObject = {
     x: 100,
     y: 100,
@@ -57,7 +70,8 @@ export const lemmingObject = {
     facing: 'right',
     gravity: true,
     falling: true,
-    active: false
+    active: false,
+    name: null
 };
 
 export function getNewLemmingObject() {
@@ -72,6 +86,7 @@ export function getNewLemmingObject() {
     gravity: true,
     falling: true,
     active: false,
+    name: null
   };
 }
 
@@ -92,6 +107,7 @@ let audioMuted;
 let languageChangedFlag;
 let beginGameState = true;
 let gameInProgress = false;
+let debugFlag = false;
 let paintMode = false;
 let scrollLeft = false;
 let scrollRight = false;
@@ -127,6 +143,14 @@ export function setElements() {
         closeButtonSavePopup: document.getElementById('closeButtonSavePopup'),
         overlay: document.getElementById('overlay')
     };
+}
+
+export function setDebugMode(value) {
+    debugFlag = value;
+}
+
+export function getDebugMode() {
+    return debugFlag;
 }
 
 export function setPaintMode(value) {
@@ -398,3 +422,6 @@ export function setIsPainting(value) {
     isPainting = value;
 }
 
+export function getLemmingNames() {
+    return lemmingNames;
+}

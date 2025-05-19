@@ -1,4 +1,4 @@
-import { getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
+import { getDebugMode, setDebugMode, getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
 import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
@@ -17,6 +17,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         setScrollRightFlag(x > canvasWidth - SCROLL_EDGE_THRESHOLD);
     });
 
+    const debugBtn = document.getElementById('debugMode');
+
+    debugBtn.addEventListener('click', () => {
+        let debugMode = getDebugMode();
+        debugMode = !debugMode;
+        setDebugMode(debugMode);
+
+        if (debugMode) {
+            debugBtn.classList.remove('btn-warning');
+            debugBtn.classList.add('btn-success');
+        } else {
+            debugBtn.classList.remove('btn-success');
+            debugBtn.classList.add('btn-warning');
+        }
+    });
+
     const paintBtn = document.getElementById('paintMode');
 
     paintBtn.addEventListener('click', () => {
@@ -31,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             paintBtn.classList.remove('btn-success');
             paintBtn.classList.add('btn-warning');
         }
-        console.log('Paint Mode now: ' + paintMode);
     });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
