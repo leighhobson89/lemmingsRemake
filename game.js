@@ -769,7 +769,7 @@ function drawDetectedObjects(ctx, detectedObjects) {
   });
     //draw lemming exit
     detectedObjects.lemmingExits.forEach(exit => {
-    const centerX = (exit.minX + exit.maxX) / 2;
+    const centerX = (exit.minX + exit.maxX) / 2 - cameraX;
     const centerY = (exit.minY + exit.maxY) / 2;
     ctx.fillStyle = 'green';
     ctx.beginPath();
