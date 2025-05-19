@@ -32,6 +32,8 @@ export const GRAVITY_SPEED = 4; //0.05
 export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
+export const SPAWN_COLOR = { r: 255, g: 255, b: 0 };
+
 
 export function setLemmingsStartPosition({ x, y }) {
     const lemming = getLemmingObject();
@@ -79,7 +81,6 @@ let releaseRate = 1000;
 let lemmingsObjects = [];
 let collisionImage = null;
 let staticEnemies = {};
-let enemySquares = [];
 let lemmingsReleased = 0;
 let cameraX = 0;
 let collisionPixels = null;
@@ -253,10 +254,6 @@ export function getGameVisibleActive() {
     return GAME_VISIBLE_ACTIVE;
 }
 
-export function getNumberOfEnemySquaresToInitialize() {
-    return NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE;
-}
-
 export function getInitialSpeedLemming() {
     return INITIAL_SPEED_LEMMING;
 }
@@ -331,18 +328,6 @@ export function getStaticEnemies() {
 
 export function setStaticEnemies(value) {
   Object.assign(staticEnemies, value);
-}
-
-export function getEnemySquares() {
-    return enemySquares;
-}
-
-export function setEnemySquares(value) {
-    enemySquares.push(value);
-}
-
-export function resetEnemySquares() {
-    enemySquares.length = 0;
 }
 
 export function getLemmingsReleased() {
