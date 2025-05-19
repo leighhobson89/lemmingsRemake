@@ -104,6 +104,7 @@ let collisionCanvas = null;
 let collisionCtx = null;
 let numberOfLemmingsForCurrentLevel = 0;
 let lemmingsRescued = 0;
+let currentTool = 'climber';
 
 //FLAGS
 let audioMuted;
@@ -443,4 +444,12 @@ export function setNumberOfLemmingsForCurrentLevel(value) {
 
 export function getNumberOfLemmingsForCurrentLevel() {
     return numberOfLemmingsForCurrentLevel;
+}
+
+export function setCurrentTool(value) {
+    currentTool = value;
+}
+
+export function getCurrentTool() {
+    return currentTool;
 }

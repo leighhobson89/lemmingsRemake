@@ -1,4 +1,4 @@
-import { getDebugMode, setDebugMode, getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
+import { setCurrentTool, getCurrentTool, getDebugMode, setDebugMode, getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD, setReleaseRate, getReleaseRate } from './constantsAndGlobalVars.js';
 import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
@@ -8,6 +8,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canvas = getElements().canvas;
 
     // Event listeners
+    // Tool button handlers
+    document.getElementById('climberTool').addEventListener('click', () => setCurrentTool('climber'));
+    document.getElementById('floaterTool').addEventListener('click', () => setCurrentTool('floater'));
+    document.getElementById('exploderTool').addEventListener('click', () => setCurrentTool('exploder'));
+    document.getElementById('blockerTool').addEventListener('click', () => setCurrentTool('blocker'));
+    document.getElementById('builderTool').addEventListener('click', () => setCurrentTool('builder'));
+    document.getElementById('basherTool').addEventListener('click', () => setCurrentTool('basher'));
+    document.getElementById('minerTool').addEventListener('click', () => setCurrentTool('miner'));
+    document.getElementById('diggerTool').addEventListener('click', () => setCurrentTool('digger'));
+
+    // Release rate controls
+    document.getElementById('releaseRateMinus').addEventListener('click', () => decreaseReleaseRate());
+    document.getElementById('releaseRatePlus').addEventListener('click', () => increaseReleaseRate());
+
+    // Nuke button
+    document.getElementById('nukeButton').addEventListener('click', () => triggerNuke());
+
+    // Fast forward button
+    document.getElementById('fastForwardButton').addEventListener('click', () => toggleFastForward());
+
     canvas.addEventListener('mousemove', (e) => {
         const canvasWidth = getElements().canvas.width;
         const rect = canvas.getBoundingClientRect();
@@ -312,4 +332,26 @@ export async function createVisualCanvas() {
     visualCanvas.width = LEVEL_WIDTH;
     visualCanvas.height = getElements().canvas.height;
     visualCtx = visualCanvas.getContext('2d', { willReadFrequently: true });
+}
+
+export function increaseReleaseRate() {
+  const currentRate = getReleaseRate();
+  if (currentRate < 99) {
+    setReleaseRate(currentRate + 1);
+  }
+}
+
+export function decreaseReleaseRate() {
+  const currentRate = getReleaseRate();
+  if (currentRate > 1) {
+    setReleaseRate(currentRate - 1);
+  }
+}
+
+export function triggerNuke() {
+
+}
+
+export function toggleFastForward() {
+    
 }
