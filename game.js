@@ -123,7 +123,8 @@ export function gameLoop(time = 0) {
 
     for (const lemming of getLemmingsObjects()) {
       if (lemming.active) {
-        updateLemmingAnimation(lemming, deltaTime);
+        const frameCount = getFrameCountForState(lemming.state);
+        updateLemmingAnimation(lemming, deltaTime, frameCount);
 
         const row = getSpriteRowForLemming(lemming.state, lemming.facing);
         const col = lemming.frameIndex;
@@ -141,6 +142,15 @@ export function gameLoop(time = 0) {
     }
 
     requestAnimationFrame(gameLoop);
+  }
+}
+
+function getFrameCountForState(state) {
+  switch (state) {
+    case 'walking': return 8;
+    case 'digging': return 8;
+    case 'falling': return 4;
+    default: return 8;
   }
 }
 
@@ -785,7 +795,7 @@ function getSpriteRowForLemming(state, facing) {
   return 0;
 }
 
-function updateLemmingAnimation(lemming, deltaTime) {
+function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
   if (lemming.frameTime === undefined) {
     lemming.frameTime = 0;
     lemming.frameIndex = 0;
@@ -796,7 +806,7 @@ function updateLemmingAnimation(lemming, deltaTime) {
 
   if (lemming.frameTime >= ANIMATION_SPEED) {
     lemming.frameTime = 0;
-    lemming.frameIndex = (lemming.frameIndex + 1) % 8;
+    lemming.frameIndex = (lemming.frameIndex + 1) % frameCount;
   }
 }
 
