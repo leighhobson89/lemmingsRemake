@@ -1,5 +1,5 @@
-import { setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, CANVAS_HEIGHT, CANVAS_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius } from './constantsAndGlobalVars.js';
-import { getPixelColor, collisionImage, setGameState, startGame, gameLoop } from './game.js';
+import { getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
+import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
 
@@ -10,7 +10,6 @@ let cameraX = 0;
 
 export let collisionCanvas = null;
 export let collisionCtx = null;
-export let collisionPixels;
 
 document.addEventListener('DOMContentLoaded', async () => {
     setElements();
@@ -26,8 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         
-        scrollLeft = x < 50;
-        scrollRight = x > canvasWidth - 50;
+        scrollLeft = x < SCROLL_EDGE_THRESHOLD;
+        scrollRight = x > canvasWidth - SCROLL_EDGE_THRESHOLD;
     });
 
     const paintBtn = document.getElementById('paintMode');
@@ -47,16 +46,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Paint Mode now: ' + paintMode);
     });
 
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
     canvas.addEventListener('mousedown', (e) => {
-    if (!getPaintMode()) return;
+        if (!getPaintMode()) return;
+        let paintType;
+
+        if (e.button === 0) {
+            paintType = 'add';
+        } else if (e.button === 2) {
+            paintType = 'remove';
+        } else {
+            return;
+        }
+
         isPainting = true;
-        paintAtMouse(e);
+        paintAtMouse(e, paintType);
     });
 
     canvas.addEventListener('mousemove', (e) => {
         if (!getPaintMode() || !isPainting) return;
-            paintAtMouse(e);
-        });
+        let paintType;
+
+        if (e.buttons & 1) {
+            paintType = 'add';
+        } else if (e.buttons & 2) {
+            paintType = 'remove';
+        } else {
+            isPainting = false;
+            return;
+        }
+
+        paintAtMouse(e, paintType);
+    });
 
     canvas.addEventListener('mouseup', () => {
         isPainting = false;  
@@ -159,13 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleLanguageChange(getLanguageSelected());
 });
 
-export function updateCollisionPixels() {
-  if (collisionCtx && collisionCanvas) {
-    collisionPixels = collisionCtx.getImageData(0, 0, collisionCanvas.width, collisionCanvas.height);
-  }
-}
-
-function paintAtMouse(e) {
+function paintAtMouse(e, type) {
   const ctx = getElements().canvas.getContext('2d', { willReadFrequently: true });
   const rect = canvas.getBoundingClientRect();
   const rawMouseX = Math.floor(e.clientX - rect.left);
@@ -178,82 +194,50 @@ function paintAtMouse(e) {
     return;
   }
 
-  //console.log("Painting...");
-  //paintCircleOnCanvas(collisionCanvas, collisionCtx, mouseX, mouseY, radius);
-  //paintCircleOnCanvas(canvas, ctx, rawMouseX, mouseY, radius);
-  paintCircleOnBothCanvases(rawMouseX, mouseY, radius);
+  paintCircleOnBothCanvases(mouseX, mouseY, radius, type);
 
 setTimeout(() => {
   updateCollisionPixels();
-  const testColor = getPixelColor(mouseX, mouseY);
-  //console.log(`Pixel at (${mouseX}, ${mouseY}) =`, testColor);
 }, 0);
 
 }
 
-function paintCircleOnBothCanvases(centerX, centerY, radius) {
-  const visibleCanvas = getElements().canvas;
-  const visibleCtx = visibleCanvas.getContext('2d', { willReadFrequently: true });
-  
-  if (!collisionCanvas || !collisionCtx) {
-    console.warn('Collision canvas/context not ready!');
-    return;
+function paintCircleOnBothCanvases(centerX, centerY, radius, type) {
+if (!collisionCanvas || !collisionCtx || !visualCanvas || !visualCtx) return;
+
+  collisionCtx.save();
+  collisionCtx.beginPath();
+  collisionCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  collisionCtx.closePath();
+  collisionCtx.clip();
+
+  if (type === 'add') {
+    collisionCtx.fillStyle = 'white';
+    collisionCtx.globalAlpha = 1.0;
+    collisionCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  } else if (type === 'remove') {
+    collisionCtx.fillStyle = 'black';
+    collisionCtx.globalAlpha = 1.0;
+    collisionCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   }
+  collisionCtx.restore();
 
-  const canvases = [
-    { canvas: collisionCanvas, ctx: collisionCtx },
-    { canvas: visibleCanvas, ctx: visibleCtx }
-  ];
+  visualCtx.save();
+  visualCtx.beginPath();
+  visualCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  visualCtx.closePath();
+  visualCtx.clip();
 
-  canvases.forEach(({ canvas, ctx }) => {
-    const startX = Math.max(0, centerX - radius);
-    const startY = Math.max(0, centerY - radius);
-    const width = Math.min(radius * 2, canvas.width - startX);
-    const height = Math.min(radius * 2, canvas.height - startY);
-
-    const imageData = ctx.getImageData(startX, startY, width, height);
-    const data = imageData.data;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const dx = x + startX - centerX;
-        const dy = y + startY - centerY;
-        if (dx * dx + dy * dy <= radius * radius) {
-          const idx = (y * width + x) * 4;
-          data[idx] = 255;       // R
-          data[idx + 1] = 255;   // G
-          data[idx + 2] = 255;   // B
-          data[idx + 3] = 255;   // A
-        }
-      }
-    }
-    ctx.putImageData(imageData, startX, startY);
-  });
-}
-
-function paintCircleOnCanvas(canvas, ctx, centerX, centerY, radius) {
-  const startX = Math.max(0, centerX - radius);
-  const startY = Math.max(0, centerY - radius);
-  const width = Math.min(radius * 2, canvas.width - startX);
-  const height = Math.min(radius * 2, canvas.height - startY);
-
-  const imageData = ctx.getImageData(startX, startY, width, height);
-  const data = imageData.data;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const dx = x + startX - centerX;
-      const dy = y + startY - centerY;
-      if (dx * dx + dy * dy <= radius * radius) {
-        const idx = (y * width + x) * 4;
-        data[idx] = 255;       // R
-        data[idx + 1] = 255;   // G
-        data[idx + 2] = 255;   // B
-        data[idx + 3] = 255;   // A
-      }
-    }
+  if (type === 'add') {
+    visualCtx.fillStyle = 'white';
+    visualCtx.globalAlpha = 1.0;
+    visualCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  } else if (type === 'remove') {
+    visualCtx.fillStyle = 'black';
+    visualCtx.globalAlpha = 1.0;
+    visualCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   }
-  ctx.putImageData(imageData, startX, startY);
+  visualCtx.restore();
 }
 
 export function updateCamera() {
@@ -308,19 +292,26 @@ export function setCameraX(value) {
 }
 
 export async function createCollisionCanvas() {
-    const mainCanvas = getElements().canvas;
-
     collisionCanvas = document.createElement('canvas');
     collisionCanvas.width = LEVEL_WIDTH;
     collisionCanvas.height = getElements().canvas.height;
 
     collisionCtx = collisionCanvas.getContext('2d', { willReadFrequently: true });
+    const collisionImage = getCollisionImage();
 
     collisionCtx.drawImage(
     collisionImage,
     0, 0, collisionImage.width, collisionImage.height,
     0, 0, collisionCanvas.width, collisionCanvas.height
     );
+}
 
-    console.log(`Collision canvas created. Size: ${collisionCanvas.width}x${collisionCanvas.height}`);
+export let visualCanvas = null;
+export let visualCtx = null;
+
+export async function createVisualCanvas() {
+    visualCanvas = document.createElement('canvas');
+    visualCanvas.width = LEVEL_WIDTH;
+    visualCanvas.height = getElements().canvas.height;
+    visualCtx = visualCanvas.getContext('2d', { willReadFrequently: true });
 }

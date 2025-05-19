@@ -1,4 +1,4 @@
-import { collisionCanvas, collisionCtx, collisionPixels } from "./ui.js";
+import { collisionCanvas, collisionCtx } from "./ui.js";
 import { getElements } from "./constantsAndGlobalVars.js";
 
 export function capitalizeString(str) {

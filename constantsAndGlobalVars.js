@@ -14,17 +14,20 @@ let oldLanguage = 'en';
 export let gameState;
 
 export const SCROLL_SPEED = 5;
+export const SCROLL_EDGE_THRESHOLD = 50;
+export const PIXEL_THRESHOLD = 10;
 export const CANVAS_WIDTH = 800;
 export const CANVAS_HEIGHT = 600;
 export const LEVEL_WIDTH = 3000;
 export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
 export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
-export const NUMBER_OF_ENEMY_SQUARES = 10;
+export const NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE = 10;
 export const INITIAL_SPEED_LEMMING = 1;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
 export const LEMMING_WIDTH = 5;
 export const LEMMING_HEIGHT = 20;
+export const TURN_COOLDOWN = 10;
 export const GRAVITY_SPEED = 4; //0.05
 export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
@@ -36,6 +39,12 @@ export function setLemmingsStartPosition({ x, y }) {
     lemming.y = y;
 }
 
+export const lemmingLevelData = {
+    level1: {
+        lemmings: 20
+    }
+}
+
 export const lemmingObject = {
     x: 100,
     y: 100,
@@ -45,11 +54,33 @@ export const lemmingObject = {
     dy: getInitialSpeedLemming(),
     facing: 'right',
     gravity: true,
-    falling: true
+    falling: true,
+    active: false
 };
 
+export function getNewLemmingObject() {
+  return {
+    x: 100,
+    y: 100,
+    width: LEMMING_WIDTH,
+    height: LEMMING_HEIGHT,
+    dx: getInitialSpeedLemming(),
+    dy: getInitialSpeedLemming(),
+    facing: 'right',
+    gravity: true,
+    falling: true,
+    active: false,
+  };
+}
+
 //GLOBAL VARIABLES
-let brushRadius = 5;
+let brushRadius = 10;
+let releaseRate = 1000;
+let lemmingsObjects = [];
+let collisionImage = null;
+let staticEnemies = {};
+let enemySquares = [];
+let lemmingsReleased = 0;
 
 //FLAGS
 let audioMuted;
@@ -159,6 +190,18 @@ export function restoreGameStatus(gameState) {
     });
 }
 
+export function setReleaseRate(value) {
+    releaseRate = value;
+}
+
+export function getReleaseRate() {
+    return releaseRate;
+}
+
+export function getLemmingLevelData(level) {
+    return lemmingLevelData[level];
+}
+
 export function setLocalization(value) {
     localization = value;
 }
@@ -203,8 +246,8 @@ export function getGameVisibleActive() {
     return GAME_VISIBLE_ACTIVE;
 }
 
-export function getNumberOfEnemySquares() {
-    return NUMBER_OF_ENEMY_SQUARES;
+export function getNumberOfEnemySquaresToInitialize() {
+    return NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE;
 }
 
 export function getInitialSpeedLemming() {
@@ -245,4 +288,60 @@ export function getBrushRadius() {
 
 export function setBrushRadius(value) {
     brushRadius = value;
+}
+
+export function getLemmingsObjects() {
+    return lemmingsObjects;
+}
+
+export function setLemmingsObjects(value, key, property) {
+    lemmingsObjects[key][property] = value;
+}
+
+export function pushNewLemmingToLemmingsObjects(value) {
+    lemmingsObjects.push(value);
+}
+
+export function resetLemmingsObjects() {
+    lemmingsObjects.length = 0
+}
+
+export function getCollisionImage() {
+    return collisionImage;
+}
+
+export function setCollisionImage(value) {
+    collisionImage = value;
+}
+
+export function changeCollisionImageProperty(value, property) {
+    collisionImage[property] = value;
+}
+
+export function getStaticEnemies() {
+    return staticEnemies;
+}
+
+export function setStaticEnemies(value) {
+  Object.assign(staticEnemies, value);
+}
+
+export function getEnemySquares() {
+    return enemySquares;
+}
+
+export function setEnemySquares(value) {
+    enemySquares.push(value);
+}
+
+export function resetEnemySquares() {
+    enemySquares.length = 0;
+}
+
+export function getLemmingsReleased() {
+    return lemmingsReleased;
+}
+
+export function setLemmingsReleased(value) {
+    lemmingsReleased = value;
 }
