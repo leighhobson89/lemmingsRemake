@@ -51,17 +51,41 @@
 
     <!-- Canvas Container -->
     <div id="canvasContainer" class="d-none">
-        <!-- Button Row -->
         <div id="buttonRow" class="d-flex justify-content-center mb-3">
             <button id="returnToMenu" class="btn btn-secondary mr-2">Return to Menu</button>
             <button id="resumeGame" class="btn btn-primary">Pause</button>
             <button id="paintMode" class="btn btn-warning">Paint</button>
+            <button id="debugMode" class="btn btn-warning">DEBUG</button>
         </div>
         <!-- Canvas Row -->
         <div class="d-flex justify-content-center">
             <canvas id="canvas"></canvas>
         </div>
-    </div>
+        <div id="lemmingToolRow" class="container-fluid mb-3">
+            <div class="row row-cols-auto g-1">
+
+                <!-- Release Rate Controls -->
+                <div class="col"><button id="releaseRateMinus" class="btn btn-secondary w-100 releaseRateMinusClass">-</button></div>
+                <div class="col"><button id="releaseRatePlus" class="btn btn-secondary w-100 releaseRatePlusClass">+</button></div>
+
+                <!-- Classic Tools -->
+                <div class="col"><button id="climberTool" class="btn btn-primary w-100 climberClass">Climber</button></div>
+                <div class="col"><button id="floaterTool" class="btn btn-primary w-100 floaterClass">Floater</button></div>
+                <div class="col"><button id="exploderTool" class="btn btn-danger w-100 exploderClass">Exploder</button></div>
+                <div class="col"><button id="blockerTool" class="btn btn-primary w-100 blockerClass">Blocker</button></div>
+                <div class="col"><button id="builderTool" class="btn btn-primary w-100 builderClass">Builder</button></div>
+                <div class="col"><button id="basherTool" class="btn btn-primary w-100 basherClass">Basher</button></div>
+                <div class="col"><button id="minerTool" class="btn btn-primary w-100 minerClass">Miner</button></div>
+                <div class="col"><button id="diggerTool" class="btn btn-primary w-100 diggerClass">Digger</button></div>
+
+                <!-- Nuke Button -->
+                <div class="col"><button id="nukeButton" class="btn btn-danger w-100 nukeClass">NUKE</button></div>
+
+                <!-- Fast Forward Button -->
+                <div class="col"><button id="fastForwardButton" class="btn btn-warning w-100 fastForwardClass">⏩</button></div>
+
+            </div>
+        </div>
 
     <!-- Overlay -->
     <div id="overlay" class="d-none overlay">

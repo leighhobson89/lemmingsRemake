@@ -1,5 +1,4 @@
-import { collisionCanvas, collisionCtx, collisionPixels } from "./ui.js";
-import { getElements } from "./constantsAndGlobalVars.js";
+import { getCollisionCanvas, getElements } from "./constantsAndGlobalVars.js";
 
 export function capitalizeString(str) {
     if (!str) return '';
@@ -7,13 +6,9 @@ export function capitalizeString(str) {
 }
 
 export function drawCollisionOverlay(ctx, cameraX) {
-  if (!collisionCanvas || !collisionCtx) {
-    console.warn('Collision canvas or context not available');
-    return;
-  }
 
-  const width = collisionCanvas.width;
-  const height = collisionCanvas.height;
+  const width = getCollisionCanvas().width;
+  const height = getCollisionCanvas().height;
 
   // Grab fresh pixel data each time
   const imageData = collisionCtx.getImageData(0, 0, width, height);

@@ -1,95 +1,74 @@
 import { localize } from './localization.js';
-import { setPaintMode, getPaintMode, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject as getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getNumberOfEnemySquares, getElements, getLanguage, getGameInProgress, gameState, CANVAS_WIDTH } from './constantsAndGlobalVars.js';
-import { updateCollisionPixels, collisionCanvas, collisionCtx, createCollisionCanvas, getCameraX, updateCamera } from './ui.js';
-import { drawCollisionOverlay, capitalizeString } from './utilities.js';
+import { setNumberOfLemmingsForCurrentLevel, getNumberOfLemmingsForCurrentLevel, setLemmingsRescued, getLemmingNames, getDebugMode, AIR_ENEMY_COLOR, GROUND_ENEMY_COLOR, SPAWN_COLOR, getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty, EXIT_COLOR, getLemmingsRescued } from './constantsAndGlobalVars.js';
+import { visualCanvas, createVisualCanvas, createCollisionCanvas, updateCamera } from './ui.js';
+import { capitalizeString } from './utilities.js';
 
-let lemmingObject = getLemmingObject();
-let staticEnemy = {};
-let collisionPixels;
-let lastFrameTime = 0;
-let lemmingHeightAdjustFrameCounter = 0;
-
-export let backgroundImage = null;
-export let collisionImage = null;
-
-let lastCollisionPixels = null;
-let collisionChangedDetected = false;
-
-const enemySquares = [];
+  const detectedObjects = {
+    enemiesAir: [],
+    enemiesGround: [],
+    lemmingSpawns: [],
+    lemmingExits: []
+  };
 
 //--------------------------------------------------------------------------------------------------------
-
-function initializeEnemySquares() {
-    enemySquares.length = 0;
-    let attempts = 0;
-
-    while (enemySquares.length < getNumberOfEnemySquares() && attempts < getMaxAttemptsToDrawEnemies()) {
-        const newSquare = generateRandomSquare();
-
-        if (!enemySquares.some(square => checkCollision(newSquare, square)) &&
-            !checkCollision(newSquare, lemmingObject)) {
-            enemySquares.push(newSquare);
-        }
-
-        attempts++;
-    }
-
-    if (attempts >= getMaxAttemptsToDrawEnemies()) {
-        console.warn(`Could not place all ${getNumberOfEnemySquares()} squares. Only ${enemySquares.length} squares were placed due to overlap constraints.`);
-    }
-}
-
-function initializeMovingEnemy() {
-    staticEnemy = generateEnemyObject();
-}
-
 export async function startGame() {
-    const ctx = getElements().canvas.getContext('2d');
-    const container = getElements().canvasContainer;
+  const ctx = getElements().canvas.getContext('2d');
+  const container = getElements().canvasContainer;
 
-    function updateCanvasSize() {
-        const canvasWidth = container.clientWidth * 0.8;
-        const canvasHeight = container.clientHeight * 0.8;
+  function updateCanvasSize() {
+      const canvasWidth = container.clientWidth * 0.8;
+      const canvasHeight = container.clientHeight * 0.8;
 
-        getElements().canvas.style.width = `${canvasWidth}px`;
-        getElements().canvas.style.height = `${canvasHeight}px`;
+      getElements().canvas.style.width = `${canvasWidth}px`;
+      getElements().canvas.style.height = `${canvasHeight}px`;
 
-        getElements().canvas.width = canvasWidth;
-        getElements().canvas.height = canvasHeight;
+      getElements().canvas.width = canvasWidth;
+      getElements().canvas.height = canvasHeight;
 
-        ctx.scale(1, 1);
-    }
+      ctx.scale(1, 1);
+  }
 
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
+  updateCanvasSize();
+  window.addEventListener('resize', updateCanvasSize);
 
-    await Promise.all([
-        loadLevel('level1'),
-        loadCollisionCanvas('level1'),
-    ]);
+  const levelData = await loadLevel('level1');
+  setNumberOfLemmingsForCurrentLevel(levelData.lemmings);
+  await createVisualCanvas();
+  const detectedObjects = await loadCollisionCanvas('level1');
 
-    await createCollisionCanvas();       
-    collisionPixels = collisionCtx.getImageData(0, 0, collisionCanvas.width, collisionCanvas.height);
-    
-    const lemmingStartPosition = { x: 20, y: 100 }; //debug
-    setLemmingsStartPosition(lemmingStartPosition);
+  console.log('Detected air enemy objects:', detectedObjects.enemiesAir);
+  console.log('Detected ground enemy objects:', detectedObjects.enemiesGround);
+  console.log('Detected lemming spawn points:', detectedObjects.lemmingSpawns);
 
-    initializeEnemySquares();
-    initializeMovingEnemy();
+  await createCollisionCanvas();
+  clearSpawnMarkersFromCollisionCanvas(detectedObjects.lemmingSpawns);
+  clearAirEnemiesFromCollisionCanvas(detectedObjects.enemiesAir);
+  clearExitMarkersFromCollisionCanvas(detectedObjects.lemmingExits);
+  replaceGroundEnemyColorsFromCollisionCanvas(detectedObjects.enemiesGround);
+  updateCollisionPixels();
 
-    gameLoop();
+  const spawn = detectedObjects.lemmingSpawns[0];
+  const lemmingStartPosition = {
+    x: Math.round((spawn.minX + spawn.maxX) / 2),
+    y: Math.round((spawn.minY + spawn.maxY) / 2)
+  };
+  setLemmingsStartPosition(lemmingStartPosition);
+
+  initializeLemmings(levelData.lemmings, lemmingStartPosition);
+  nameLemmings(getLemmingsObjects());
+
+  gameLoop();
 }
 
+let lastFrameTime = 0;
 export function gameLoop(time = 0) {
   if (time - lastFrameTime < FRAME_DURATION) {
     requestAnimationFrame(gameLoop);
     return;
   }
-  lastFrameTime = time;
 
-  if (getBeginGameStatus()) {
-    lemmingObject = getLemmingObject();
-  }
+  const deltaTime = time - lastFrameTime;
+  lastFrameTime = time;
 
   const ctx = getElements().canvas.getContext('2d');
 
@@ -99,63 +78,130 @@ export function gameLoop(time = 0) {
 
     updateCamera();
 
-    if (backgroundImage && backgroundImage.complete) {
+    if (visualCanvas) {
       const cameraX = getCameraX();
-
       ctx.drawImage(
-        backgroundImage,
+        visualCanvas,
         cameraX, 0,
         getElements().canvas.width,
-        backgroundImage.height,
+        visualCanvas.height,
         0, 0,
         getElements().canvas.width,
         getElements().canvas.height
       );
     }
 
-    if (collisionCanvas) {
+    if (getCollisionCanvas()) {
       const cameraX = getCameraX();
       ctx.drawImage(
-        collisionCanvas,
+        getCollisionCanvas(),
         cameraX, 0,
         getElements().canvas.width,
-        collisionCanvas.height,
+        getCollisionCanvas().height,
         0, 0,
         getElements().canvas.width,
-        collisionCanvas.height
+        getCollisionCanvas().height
       );
     }
 
-    //drawCollisionOverlay(ctz, getCameraX());
+    if (getDebugMode()) {
+      drawDetectedObjects(ctx, detectedObjects);
+    }
 
-    // Only update game logic if game is active (not paused)
     if (gameState === getGameVisibleActive()) {
-      moveLemming(lemmingObject);
-      applyGravity(lemmingObject);
+      releaseLemmings(deltaTime);
+      
+      for (const lemming of getLemmingsObjects()) {
+        if (lemming.active) {
+          moveLemmingInstance(lemming);
+          applyGravity(lemming);
+        }
+      }
+
       checkAllCollisions();
     }
 
-    // Draw game objects on top
-    drawMovingObject(ctx, lemmingObject.x, lemmingObject.y, lemmingObject.width, lemmingObject.height, 'green');
-    drawMovingObject(ctx, staticEnemy.x, staticEnemy.y, staticEnemy.width, staticEnemy.height, 'red');
+    for (const lemming of getLemmingsObjects()) {
+      if (lemming.active) {
+        drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green');
+      }
+    }
 
-    enemySquares.forEach(square => {
-      drawEnemySquare(ctx, square.x, square.y, square.width, square.height);
-    });
+    const staticEnemies = getStaticEnemies();
+    drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red');
+    const allInactive = getNumberOfLemmingsForCurrentLevel() === getLemmingsReleased() && getLemmingsObjects().every(l => !l.active);
+    if (allInactive) {
+      console.log('All lemmings are now inactive - can end level');
+    }
 
-    // Request next frame
     requestAnimationFrame(gameLoop);
   }
 }
 
-function checkCollisionPixelsChanged() {
-  if (collisionChangedDetected || !collisionPixels) return;
+function nameLemmings(lemmings) {
+  const names = [...getLemmingNames()];
+  const used = new Set();
 
-  const currentData = collisionPixels.data;
+  function getRandomName() {
+    const available = names.filter(n => !used.has(n));
+    if (available.length === 0) {
+      return null;
+    }
+    const randomIndex = Math.floor(Math.random() * available.length);
+    const name = available[randomIndex];
+    used.add(name);
+    return name;
+  }
+
+  for (let i = 0; i < lemmings.length; i++) {
+    const name = getRandomName();
+    if (name) {
+      lemmings[i].name = name;
+    } else {
+      lemmings[i].name = `Lemming${i + 1}`;
+    }
+  }
+}
+
+
+function initializeLemmings(lemmingsQuantity, startPosition) {
+  resetLemmingsObjects();
+
+  for (let i = 0; i < lemmingsQuantity; i++) {
+    const newLemming = getNewLemmingObject();
+
+    newLemming.x = startPosition.x;
+    newLemming.y = startPosition.y;
+
+    pushNewLemmingToLemmingsObjects(newLemming);
+  }
+}
+
+let releaseTimer = 0;
+function releaseLemmings(deltaTime) {
+    if (getLemmingsReleased() >= getLemmingsObjects().length) {
+      return;
+    }
+
+    const releaseRate = getReleaseRate();
+
+    releaseTimer += deltaTime;
+
+    if (releaseTimer >= releaseRate) {
+      setLemmingsObjects(true, getLemmingsReleased(), 'active');
+      setLemmingsReleased(getLemmingsReleased() + 1);
+      releaseTimer = 0;
+    }
+  }
+
+let lastCollisionPixels = null;
+function checkCollisionPixelsChanged() {
+  if (!getCollisionPixels()) return;
+
+  const currentData = getCollisionPixels().data;
 
   if (!lastCollisionPixels) {
     lastCollisionPixels = new Uint8ClampedArray(currentData);
-    console.log("false no data");
     return;
   }
 
@@ -163,96 +209,70 @@ function checkCollisionPixelsChanged() {
 
   for (let i = 0; i < len; i++) {
     if (currentData[i] !== lastCollisionPixels[i]) {
-      console.log("true");
-      collisionChangedDetected = true;
       return;
     }
   }
-
-  console.log("false");
 
   // Update snapshot for next frame
   lastCollisionPixels = new Uint8ClampedArray(currentData);
 }
 
+function moveLemmingInstance(lemming) {
+  if (lemming.state === 'walking') {
+    lemming.x += lemming.dx;
 
-
-function moveLemming(lemming) {
-    if (!lemming.falling) {
-        lemming.x += lemming.dx;
-
-        //lemming will be lost if it hits the edge, change this rebound logic eventually when they have a surface to walk on
-        if (lemming.x < 0) {
-            lemming.x = 0;
-            lemming.dx = Math.abs(lemming.dx);
-            lemming.facing = 'right';
-        } else if (lemming.x + lemming.width > LEVEL_WIDTH) {
-            lemming.x = LEVEL_WIDTH - lemming.width;
-            lemming.dx = -Math.abs(lemming.dx);
-            lemming.facing = 'left';
-        }
-        adjustLemmingHeight(lemming);
+    if (lemming.x < 0) {
+      lemming.active = false;
+      return;
     }
+
+    if (lemming.x + lemming.width > LEVEL_WIDTH) {
+      lemming.active = false;
+      return;
+    }
+
+    adjustLemmingHeight(lemming);
+  }
+
+  const canvasHeight = getElements().canvas.height;
+  if (lemming.y > canvasHeight) {
+    lemming.active = false;
+  }
 }
 
 function applyGravity(lemming) {
   if (!lemming.gravity) return;
 
-  if (lemming.falling) {
+  if (lemming.state === 'falling') {
     lemming.y += GRAVITY_SPEED;
 
     if (isOnGround(lemming)) {
-      lemming.falling = false;
+      lemming.state = 'walking';
       lemming.y = Math.floor(lemming.y);
     }
   } else {
-    if (!isOnGround(lemming)) lemming.falling = true;
+    if (!isOnGround(lemming)) lemming.state = 'falling';
   }
 }
 
 function checkAllCollisions() {
-    enemySquares.forEach(square => {
-        if (checkCollision(lemmingObject, square)) {
-            handleCollisionBetweenEnemySquares(lemmingObject, square);
-        }
-    });
-
-    if (checkCollision(lemmingObject, staticEnemy)) {
-        handleCollisionBetweenEnemySquares(lemmingObject, staticEnemy);
-        handleCollisionBetweenEnemySquares(staticEnemy, lemmingObject);
-    }
+  getLemmingsObjects().forEach(lemming => {
+    if (!lemming.active) return;
+    checkLemmingEnemyCollisions(getLemmingsObjects());
+  });
 }
 
-function generateRandomSquare() {
-    const canvasHeight = getElements().canvas.height;
-    const size = 20;
-    const x = Math.random() * (LEVEL_WIDTH - size);
-    const y = Math.random() * (canvasHeight - size);
-    return { x, y, width: size, height: size };
-}
-
-function generateEnemyObject() {
-    const canvasHeight = getElements().canvas.height;
-
-    const size = 25;
-    const x = (LEVEL_WIDTH / 2);
-    const y = canvasHeight - size;
-    const dx = 0;
-    const dy = 0;
-    return { x, y, width: size, height: size, dx, dy };
-}
-
-function drawMovingObject(ctx, x, y, width, height, color) {
+function drawInstances(ctx, x, y, width, height, type, color) {
     const cameraX = getCameraX();
     ctx.fillStyle = color;
 
-    if (color === 'green') {
+    if (type === 'lemming') {
         ctx.fillRect(x - cameraX, y, width, height);
-    } else {
+    } else if (type === 'enemy') {
         ctx.beginPath(); 
         ctx.arc(
-            x - cameraX + width / 2,
-            y + height / 2,
+            100,
+            280,
             width / 2,
             0,
             Math.PI * 2
@@ -262,43 +282,64 @@ function drawMovingObject(ctx, x, y, width, height, color) {
     }
 }
 
-function drawEnemySquare(ctx, x, y, width, height) {
-    const cameraX = getCameraX();
-    ctx.fillStyle = 'yellow';
-    ctx.fillRect(x - cameraX, y, width, height);
+function rectsOverlap(r1, r2) {
+  return !(r2.x > r1.x + r1.width ||
+           r2.x + r2.width < r1.x ||
+           r2.y > r1.y + r1.height ||
+           r2.y + r2.height < r1.y);
 }
 
-function checkCollision(rect1, rect2) {
-    return !(rect1.x + rect1.width < rect2.x ||
-             rect1.x > rect2.x + rect2.width ||
-             rect1.y + rect1.height < rect2.y ||
-             rect1.y > rect2.y + rect2.height);
-}
+function checkLemmingEnemyCollisions(lemmings) {
+  for (const lemming of lemmings) {
+    if (!lemming.active) continue;
 
-function handleCollisionBetweenEnemySquares(rectangle, square) {
-    const rectCenterX = rectangle.x + rectangle.width / 2;
-    const rectCenterY = rectangle.y + rectangle.height / 2;
-    const squareCenterX = square.x + square.width / 2;
-    const squareCenterY = square.y + square.height / 2;
+    const lemmingRect = {
+      x: lemming.x,
+      y: lemming.y,
+      width: lemming.width,
+      height: lemming.height
+    };
 
-    const dx = Math.abs(rectCenterX - squareCenterX);
-    const dy = Math.abs(rectCenterY - squareCenterY);
-    const overlapX = rectangle.width / 2 + square.width / 2 - dx;
-    const overlapY = rectangle.height / 2 + square.height / 2 - dy;
-
-    if (overlapX >= overlapY) {
-        if (rectCenterY < squareCenterY) {
-            rectangle.dy = -Math.abs(rectangle.dy);
-        } else {
-            rectangle.dy = Math.abs(rectangle.dy);
-        }
-    } else {
-        if (rectCenterX < squareCenterX) {
-            rectangle.dx = -Math.abs(rectangle.dx);
-        } else {
-            rectangle.dx = Math.abs(rectangle.dx);
-        }
+    for (const enemy of detectedObjects.enemiesAir) {
+      const enemyRect = {
+        x: enemy.minX,
+        y: enemy.minY,
+        width: enemy.maxX - enemy.minX,
+        height: enemy.maxY - enemy.minY
+      };
+      if (rectsOverlap(lemmingRect, enemyRect)) {
+        console.log(`Air enemy triggered by lemming: ${lemming.name}`);
+        lemming.active = false;
+      }
     }
+
+    for (const enemy of detectedObjects.enemiesGround) {
+      const enemyRect = {
+        x: enemy.minX,
+        y: enemy.minY,
+        width: enemy.maxX - enemy.minX,
+        height: enemy.maxY - enemy.minY
+      };
+      if (rectsOverlap(lemmingRect, enemyRect)) {
+        console.log(`Ground enemy triggered by lemming: ${lemming.name}`);
+        lemming.active = false;
+      }
+    }
+
+    for (const exit of detectedObjects.lemmingExits) {
+      const exitRect = {
+        x: exit.minX,
+        y: exit.minY,
+        width: exit.maxX - exit.minX,
+        height: exit.maxY - exit.minY
+      };
+      if (rectsOverlap(lemmingRect, exitRect)) {
+        setLemmingsRescued();
+        console.log(`Lemming ${lemming.name} reached the exit, now rescued ${getLemmingsRescued()} out of a possible ${getNumberOfLemmingsForCurrentLevel()}`);
+        lemming.active = false;
+      }
+    }
+  }
 }
 
 function isOnGround(lemming) {
@@ -311,10 +352,8 @@ function isOnGround(lemming) {
 
   for (const x of samplePoints) {
     const pixel = getPixelColor(x, y);
-    // You can uncomment this for verbose debugging:
-    // console.log(`Checking pixel at (${x}, ${y}):`, pixel);
 
-    if (pixel[0] > 10 || pixel[1] > 10 || pixel[2] > 10) {
+    if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) {
       return true;
     }
   }
@@ -322,94 +361,312 @@ function isOnGround(lemming) {
 }
 
 export function getPixelColor(x, y) {
-  if (x < 0 || y < 0 || x >= collisionCanvas.width || y >= collisionCanvas.height) return [0,0,0,0];
+  if (x < 0 || y < 0 || x >= getCollisionCanvas().width || y >= getCollisionCanvas().height) return [0,0,0,0];
 
-  const index = (y * collisionCanvas.width + x) * 4;
-  const data = collisionPixels.data;
+  const index = (y * getCollisionCanvas().width + x) * 4;
+  const data = getCollisionPixels().data;
   return [data[index], data[index + 1], data[index + 2], data[index + 3]];
 }
 
-export function getRightmostBoundary() {
-    const player = getLemmingObject();
-    const objects = [player, staticEnemy, ...enemySquares];
-    return Math.max(...objects.map(obj => obj.x + obj.width));
-}
-
 export function loadLevel(levelName) {
-  return new Promise((resolve) => {
-    backgroundImage = new Image();
-    backgroundImage.src = `./assets/levels/background${capitalizeString(levelName)}.png`;
-    backgroundImage.onload = () => {
-      console.log(`Background image for ${levelName} loaded. Dimensions: ${backgroundImage.width}x${backgroundImage.height}`);
-      resolve();
-    };
-  });
+  const lemmingLevelData = getLemmingLevelData(levelName);
+  return lemmingLevelData;
 }
 
 export function loadCollisionCanvas(levelName) {
   return new Promise((resolve) => {
-    collisionImage = new Image();
-    collisionImage.src = `./assets/levels/collision${capitalizeString(levelName)}.png`;
-    collisionImage.onload = () => {
-      console.log(`Collision image for ${levelName} loaded. Dimensions: ${collisionImage.width}x${collisionImage.height}`);
-      resolve();
+    setCollisionImage(new Image());
+    changeCollisionImageProperty(`./assets/levels/collision${capitalizeString(levelName)}.png`, 'src');
+    getCollisionImage().onload = () => {
+      console.log(`Collision image for ${levelName} loaded. Dimensions: ${getCollisionImage().width}x${getCollisionImage().height}`);
+      const detectedObjects = floodFillCollisionObjectsByColor(getCollisionImage());
+
+      resolve(detectedObjects);
     };
   });
 }
 
-function adjustLemmingHeight(lemming) {
-  lemmingHeightAdjustFrameCounter++;
-  
-  if (lemmingHeightAdjustFrameCounter % 5 !== 0) return;
+export function clearExitMarkersFromCollisionCanvas(lemmingExits) {
+  const ctx = getCollisionCanvas().getContext('2d');
+  const imageData = ctx.getImageData(0, 0, getCollisionCanvas().width, getCollisionCanvas().height);
+  const data = imageData.data;
 
+  lemmingExits.forEach(exit => {
+    for (let y = exit.minY; y <= exit.maxY; y++) {
+      for (let x = exit.minX; x <= exit.maxX; x++) {
+        const index = (y * getCollisionCanvas().width + x) * 4;
+        if (
+          data[index] === EXIT_COLOR.r &&
+          data[index + 1] === EXIT_COLOR.g &&
+          data[index + 2] === EXIT_COLOR.b
+        ) {
+          data[index] = 0;
+          data[index + 1] = 0;
+          data[index + 2] = 0;
+        }
+      }
+    }
+  });
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function clearAirEnemiesFromCollisionCanvas(enemiesAir) {
+  const ctx = getCollisionCanvas().getContext('2d');
+  const canvasWidth = getCollisionCanvas().width;
+  const imageData = ctx.getImageData(0, 0, canvasWidth, getCollisionCanvas().height);
+  const data = imageData.data;
+
+  enemiesAir.forEach(enemy => {
+    for (let y = enemy.minY; y <= enemy.maxY; y++) {
+      for (let x = enemy.minX; x <= enemy.maxX; x++) {
+        const index = (y * canvasWidth + x) * 4;
+        if (
+          data[index] === AIR_ENEMY_COLOR.r &&
+          data[index + 1] === AIR_ENEMY_COLOR.g &&
+          data[index + 2] === AIR_ENEMY_COLOR.b
+        ) {
+          data[index] = 0;
+          data[index + 1] = 0;
+          data[index + 2] = 0;
+          data[index + 3] = 255;
+        }
+      }
+    }
+  });
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function replaceGroundEnemyColorsFromCollisionCanvas(enemiesGround) {
+  const ctx = getCollisionCanvas().getContext('2d');
+  const canvas = getCollisionCanvas();
+  const { width, height } = canvas;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  const PADDING = 3;
+
+  enemiesGround.forEach(enemy => {
+    const colorCount = {};
+
+    for (let y = enemy.minY - PADDING; y <= enemy.maxY + PADDING; y++) {
+      for (let x = enemy.minX - PADDING; x <= enemy.maxX + PADDING; x++) {
+        if (x < 0 || y < 0 || x >= width || y >= height) continue;
+
+        if (x >= enemy.minX && x <= enemy.maxX && y >= enemy.minY && y <= enemy.maxY) continue;
+
+        const index = (y * width + x) * 4;
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+
+        const isAir = r === 255 && g === 0 && b === 0;
+        const isGround = r === 255 && g === 165 && b === 0;
+        if (isAir || isGround) continue;
+
+        const key = `${r},${g},${b}`;
+        colorCount[key] = (colorCount[key] || 0) + 1;
+      }
+    }
+
+    const mostCommonColor = Object.entries(colorCount).reduce((a, b) => (b[1] > a[1] ? b : a), [null, 0])[0];
+    if (!mostCommonColor) return;
+
+    const [rNew, gNew, bNew] = mostCommonColor.split(',').map(Number);
+
+    for (let y = enemy.minY; y <= enemy.maxY; y++) {
+      for (let x = enemy.minX; x <= enemy.maxX; x++) {
+        const index = (y * width + x) * 4;
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+
+        if (r === GROUND_ENEMY_COLOR.r && g === GROUND_ENEMY_COLOR.g && b === GROUND_ENEMY_COLOR.b) {
+          data[index] = rNew;
+          data[index + 1] = gNew;
+          data[index + 2] = bNew;
+          data[index + 3] = 255;
+        }
+      }
+    }
+  });
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+
+function clearSpawnMarkersFromCollisionCanvas() {
+  const collisionCanvas = getCollisionCanvas();
+  if (!collisionCanvas) return;
+
+  const ctx = collisionCanvas.getContext('2d');
+  const width = collisionCanvas.width;
+  const height = collisionCanvas.height;
+
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+
+    if (
+      r === SPAWN_COLOR.r &&
+      g === SPAWN_COLOR.g &&
+      b === SPAWN_COLOR.b
+    ) {
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function floodFillCollisionObjectsByColor(collisionImage) {
+  const canvas = document.createElement('canvas');
+  canvas.width = collisionImage.width;
+  canvas.height = collisionImage.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(collisionImage, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const visited = new Uint8Array(canvas.width * canvas.height);
+
+  function getIndex(x, y) {
+    return y * canvas.width + x;
+  }
+
+  function isColorPixel(x, y, color) {
+    const i = getIndex(x, y) * 4;
+    return data[i] === color.r && data[i + 1] === color.g && data[i + 2] === color.b && data[i + 3] === 255;
+  }
+
+  const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  function floodFill(x, y, color) {
+    let queue = [[x, y]];
+    visited[getIndex(x, y)] = 1;
+
+    let minX = x, maxX = x, minY = y, maxY = y;
+
+    while (queue.length > 0) {
+      const [cx, cy] = queue.pop();
+
+      for (const [dx, dy] of directions) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+
+        if (nx >= 0 && nx < canvas.width && ny >= 0 && ny < canvas.height) {
+          const idx = getIndex(nx, ny);
+          if (!visited[idx] && isColorPixel(nx, ny, color)) {
+            visited[idx] = 1;
+            queue.push([nx, ny]);
+
+            minX = Math.min(minX, nx);
+            maxX = Math.max(maxX, nx);
+            minY = Math.min(minY, ny);
+            maxY = Math.max(maxY, ny);
+          }
+        }
+      }
+    }
+
+    return { minX, maxX, minY, maxY };
+  }
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const idx = getIndex(x, y);
+      if (!visited[idx]) {
+        if (isColorPixel(x, y, AIR_ENEMY_COLOR)) {
+          const obj = floodFill(x, y, AIR_ENEMY_COLOR);
+          detectedObjects.enemiesAir.push(obj);
+        } else if (isColorPixel(x, y, GROUND_ENEMY_COLOR)) {
+          const obj = floodFill(x, y, GROUND_ENEMY_COLOR);
+          detectedObjects.enemiesGround.push(obj);
+        } else if (isColorPixel(x, y, SPAWN_COLOR)) {
+          const obj = floodFill(x, y, SPAWN_COLOR);
+          detectedObjects.lemmingSpawns.push(obj);
+        } else if (isColorPixel(x, y, EXIT_COLOR)) {
+          const obj = floodFill(x, y, EXIT_COLOR);
+          detectedObjects.lemmingExits.push(obj);
+        }
+      }
+    }
+  }
+
+  return detectedObjects;
+}
+
+function adjustLemmingHeight(lemming) {
   const height = lemming.height;
-  const checkHeight = Math.max(1, Math.floor(height * 0.1)); // bottom 10%
+  const checkHeight = Math.max(1, Math.floor(height * 0.1));
   const bottomY = Math.floor(lemming.y + height);
 
   let footX;
   if (lemming.facing === 'right') {
-    footX = Math.floor(lemming.x + lemming.width); // just outside right edge
+    footX = Math.floor(lemming.x + lemming.width);
   } else {
-    footX = Math.floor(lemming.x); // just outside left edge
+    footX = Math.floor(lemming.x);
+  }
+
+  // Initialize cooldown if undefined
+  if (typeof lemming.turnCooldown === 'undefined') {
+    lemming.turnCooldown = 0;
+  }
+
+  // Check pixel directly above lemming top edge
+  const pixelAbove = getPixelColor(footX, Math.floor(lemming.y) - 1);
+  if (lemming.turnCooldown === 0 &&
+      (pixelAbove[0] > PIXEL_THRESHOLD || pixelAbove[1] > PIXEL_THRESHOLD || pixelAbove[2] > PIXEL_THRESHOLD)) {
+    // Turn around and start cooldown
+    lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
+    lemming.dx = -lemming.dx;
+    lemming.turnCooldown = TURN_COOLDOWN; // 10 frames cooldown
+    return; // skip rest this frame to avoid weird climbing in same frame
+  }
+
+  // Decrement cooldown if active
+  if (lemming.turnCooldown > 0) {
+    lemming.turnCooldown--;
   }
 
   let solidPixels = 0;
   let solidAboveCount = 0;
 
-  // Count solid pixels in bottom 10%
   for (let i = 0; i < checkHeight; i++) {
     const sampleY = bottomY - 1 - i;
     const pixel = getPixelColor(footX, sampleY);
-    if (pixel[0] > 10 || pixel[1] > 10 || pixel[2] > 10) solidPixels++;
+    if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) solidPixels++;
   }
 
-  // Count solid pixels above bottom 10%
   for (let i = checkHeight; i < height; i++) {
     const sampleY = bottomY - 1 - i;
     const pixel = getPixelColor(footX, sampleY);
-    if (pixel[0] > 10 || pixel[1] > 10 || pixel[2] > 10) solidAboveCount++;
+    if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) solidAboveCount++;
   }
-
-//   console.log(`[Lemming] Facing: ${lemming.facing}`);
-//   console.log(`[Lemming] Solid pixels in bottom 10%: ${solidPixels}/${checkHeight} (${((solidPixels / checkHeight) * 100).toFixed(1)}%)`);
-//   console.log(`[Lemming] Solid pixels ABOVE bottom 10%: ${solidAboveCount}`);
 
   if (solidPixels > 0) {
     if (solidAboveCount <= 8) {
       // All clear above — climb
       lemming.y -= solidAboveCount;
-      lemming.falling = false;
-      //console.log(`[Lemming] Climbing up ${solidAboveCount}px`);
+      lemming.state = 'walking';
     } else {
-      // Wall too tall — move up then turn around, set cooldown
-      //lemming.y -= solidAboveCount;
-      lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
-      lemming.dx = -Math.abs(lemming.dx);
-      //console.log(`[Lemming] Wall too tall — moved up ${solidAboveCount}px then turned around, cooldown set`);
+      // Wall too tall — turn around
+      if (lemming.turnCooldown === 0) {
+        lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
+        lemming.dx = -Math.abs(lemming.dx);
+        lemming.turnCooldown = TURN_COOLDOWN;
+      }
     }
   } else {
-    //console.log(`[Lemming] No climbable surface detected`);
-
     let transparentCount = 0;
     for (let offset = 1; offset <= 10; offset++) {
       const sampleY = bottomY + offset;
@@ -423,14 +680,89 @@ function adjustLemmingHeight(lemming) {
 
     if (transparentCount >= 1 && transparentCount < 10) {
       lemming.y += 1;
-      lemming.falling = true;
-      console.log(`[Lemming] Small drop — descending 1px`);
+      lemming.state = 'falling';
     }
   }
 }
 
+export function updateCollisionPixels() {
+  if (getCollisionCtx() && getCollisionCanvas()) {
+    setCollisionPixels(getCollisionCtx().getImageData(0, 0, getCollisionCanvas().width, getCollisionCanvas().height));
+  }
+}
+
+function drawDetectedObjects(ctx, detectedObjects) {
+  const cameraX = getCameraX();
+  const radius = 20;
+
+  detectedObjects.enemiesAir.forEach(enemy => {
+    const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
+    const centerY = (enemy.minY + enemy.maxY) / 2;
+
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+  // Draw ground enemies (orange)
+  detectedObjects.enemiesGround.forEach(enemy => {
+    const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
+    const centerY = (enemy.minY + enemy.maxY) / 2;
+
+    ctx.fillStyle = 'orange';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+  // Draw lemming spawns (yellow)
+  detectedObjects.lemmingSpawns.forEach(spawn => {
+    const centerX = (spawn.minX + spawn.maxX) / 2 - cameraX;
+    const centerY = (spawn.minY + spawn.maxY) / 2;
+
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+
+  // Draw ground enemies (orange)
+  detectedObjects.enemiesGround.forEach(enemy => {
+    const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
+    const centerY = (enemy.minY + enemy.maxY) / 2;
+
+    ctx.fillStyle = 'orange';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+  // Draw lemming spawns (yellow)
+  detectedObjects.lemmingSpawns.forEach(spawn => {
+    const centerX = (spawn.minX + spawn.maxX) / 2 - cameraX;
+    const centerY = (spawn.minY + spawn.maxY) / 2;
+
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+    //draw lemming exit
+    detectedObjects.lemmingExits.forEach(exit => {
+    const centerX = (exit.minX + exit.maxX) / 2;
+    const centerY = (exit.minY + exit.maxY) / 2;
+    ctx.fillStyle = 'green';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+}
+
+
 export function setGameState(newState) {
-    console.log("Setting game state to " + newState);
+    //console.log("Setting game state to " + newState);
     setGameStateVariable(newState);
 
     switch (newState) {

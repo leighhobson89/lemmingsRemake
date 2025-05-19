@@ -1,6 +1,4 @@
 //DEBUG
-export let debugFlag = false;
-export let debugOptionFlag = false;
 export let stateLoading = false;
 
 //ELEMENTS
@@ -14,21 +12,29 @@ let oldLanguage = 'en';
 export let gameState;
 
 export const SCROLL_SPEED = 5;
+export const SCROLL_EDGE_THRESHOLD = 50;
+export const PIXEL_THRESHOLD = 10;
 export const CANVAS_WIDTH = 800;
 export const CANVAS_HEIGHT = 600;
 export const LEVEL_WIDTH = 3000;
 export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
 export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
-export const NUMBER_OF_ENEMY_SQUARES = 10;
+export const NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE = 10;
 export const INITIAL_SPEED_LEMMING = 1;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
 export const LEMMING_WIDTH = 5;
 export const LEMMING_HEIGHT = 20;
+export const TURN_COOLDOWN = 10;
 export const GRAVITY_SPEED = 4; //0.05
 export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
+export const SPAWN_COLOR = { r: 255, g: 255, b: 0 };
+export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
+export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
+export const EXIT_COLOR = { r: 0, g: 255, b: 0 };
+
 
 export const SPRITE_SIZE = 10;
 export const SHEET_WIDTH = 200;
@@ -62,6 +68,25 @@ export function setLemmingsStartPosition({ x, y }) {
     lemming.y = y;
 }
 
+export const lemmingLevelData = {
+    level1: {
+        lemmings: 20
+    }
+}
+
+export const lemmingNames = [
+  "Alex", "Bailey", "Casey", "Drew", "Elliot", "Finley", "Gray", "Harper", "Indigo", "Jesse",
+  "Kai", "Logan", "Morgan", "Nico", "Ocean", "Parker", "Quinn", "Riley", "Sawyer", "Taylor",
+  "Blake", "Cameron", "Dakota", "Emery", "Flynn", "Genesis", "Haven", "Ivory", "Jaden", "Kendall",
+  "Lane", "Marlow", "Nova", "Oakley", "Phoenix", "Quincy", "Reese", "Sage", "Tatum", "Urban",
+  "Vale", "Winter", "Xen", "Yale", "Zion", "Arden", "Blaine", "Charlie", "Devon", "Emerson",
+  "Frankie", "Gale", "Hayden", "Ira", "Jules", "Karter", "Lee", "Micah", "Noel", "Onyx",
+  "Peyton", "Quade", "Rory", "Skyler", "Terry", "Umber", "Vega", "Wren", "Xander", "Yael",
+  "Zane", "Ash", "Bryn", "Cruz", "Denver", "Ellis", "Florian", "Grayce", "Hollis", "Izzy",
+  "Jory", "Kris", "Lennon", "Marlo", "Nicolette", "Oak", "Pax", "Raine", "Sasha", "Toby",
+  "Urban", "Vail", "West", "Xavi", "Yanni", "Zephyr", "Ari", "Blair", "Cyan", "Dallas"
+];
+
 export const lemmingObject = {
     x: 100,
     y: 100,
@@ -71,18 +96,52 @@ export const lemmingObject = {
     dy: getInitialSpeedLemming(),
     facing: 'right',
     gravity: true,
-    falling: true
+    state: 'falling',
+    active: false,
+    name: null
 };
 
+export function getNewLemmingObject() {
+  return {
+    x: 100,
+    y: 100,
+    width: LEMMING_WIDTH,
+    height: LEMMING_HEIGHT,
+    dx: getInitialSpeedLemming(),
+    dy: getInitialSpeedLemming(),
+    facing: 'right',
+    gravity: true,
+    state: 'falling',
+    active: false,
+    name: null
+  };
+}
+
 //GLOBAL VARIABLES
-let brushRadius = 5;
+let brushRadius = 10;
+let releaseRate = 1000;
+let lemmingsObjects = [];
+let collisionImage = null;
+let staticEnemies = {};
+let lemmingsReleased = 0;
+let cameraX = 0;
+let collisionPixels = null;
+let collisionCanvas = null;
+let collisionCtx = null;
+let numberOfLemmingsForCurrentLevel = 0;
+let lemmingsRescued = 0;
+let currentTool = 'climber';
 
 //FLAGS
 let audioMuted;
 let languageChangedFlag;
 let beginGameState = true;
 let gameInProgress = false;
+let debugFlag = false;
 let paintMode = false;
+let scrollLeft = false;
+let scrollRight = false;
+let isPainting = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
@@ -114,6 +173,14 @@ export function setElements() {
         closeButtonSavePopup: document.getElementById('closeButtonSavePopup'),
         overlay: document.getElementById('overlay')
     };
+}
+
+export function setDebugMode(value) {
+    debugFlag = value;
+}
+
+export function getDebugMode() {
+    return debugFlag;
 }
 
 export function setPaintMode(value) {
@@ -185,6 +252,18 @@ export function restoreGameStatus(gameState) {
     });
 }
 
+export function setReleaseRate(value) {
+    releaseRate = value;
+}
+
+export function getReleaseRate() {
+    return releaseRate;
+}
+
+export function getLemmingLevelData(level) {
+    return lemmingLevelData[level];
+}
+
 export function setLocalization(value) {
     localization = value;
 }
@@ -229,10 +308,6 @@ export function getGameVisibleActive() {
     return GAME_VISIBLE_ACTIVE;
 }
 
-export function getNumberOfEnemySquares() {
-    return NUMBER_OF_ENEMY_SQUARES;
-}
-
 export function getInitialSpeedLemming() {
     return INITIAL_SPEED_LEMMING;
 }
@@ -271,4 +346,136 @@ export function getBrushRadius() {
 
 export function setBrushRadius(value) {
     brushRadius = value;
+}
+
+export function getLemmingsObjects() {
+    return lemmingsObjects;
+}
+
+export function setLemmingsObjects(value, key, property) {
+    lemmingsObjects[key][property] = value;
+}
+
+export function pushNewLemmingToLemmingsObjects(value) {
+    lemmingsObjects.push(value);
+}
+
+export function resetLemmingsObjects() {
+    lemmingsObjects.length = 0
+}
+
+export function getCollisionImage() {
+    return collisionImage;
+}
+
+export function setCollisionImage(value) {
+    collisionImage = value;
+}
+
+export function changeCollisionImageProperty(value, property) {
+    collisionImage[property] = value;
+}
+
+export function getStaticEnemies() {
+    return staticEnemies;
+}
+
+export function setStaticEnemies(value) {
+  Object.assign(staticEnemies, value);
+}
+
+export function getLemmingsReleased() {
+    return lemmingsReleased;
+}
+
+export function setLemmingsReleased(value) {
+    lemmingsReleased = value;
+}
+
+export function getCameraX() {
+    return cameraX;
+}
+
+export function setCameraX(value) {
+    cameraX = value;
+}
+
+export function getScrollLeftFlag() {
+    return scrollLeft;
+}
+
+export function setScrollLeftFlag(value) {
+    scrollLeft = value;
+}
+
+export function getScrollRightFlag() {
+    return scrollRight;
+}
+
+export function setScrollRightFlag(value) {
+    scrollRight = value;
+}
+
+export function getCollisionPixels() {
+    return collisionPixels;
+}
+
+export function setCollisionPixels(value) {
+    collisionPixels = value;
+}
+
+export function getCollisionCanvas() {
+    return collisionCanvas;
+}
+
+export function setCollisionCanvas(value) {
+    collisionCanvas = value;
+}
+
+export function getCollisionCtx() {
+    return collisionCtx;
+}
+
+export function setCollisionCtx(value) {
+    collisionCtx = value;
+}
+
+export function changeCollisionCanvasProperty(value, property) {
+    collisionCanvas[property] = value;
+}
+
+export function getIsPainting() {
+    return isPainting;
+}
+
+export function setIsPainting(value) {
+    isPainting = value;
+}
+
+export function getLemmingNames() {
+    return lemmingNames;
+}
+
+export function setLemmingsRescued() {
+    lemmingsRescued++;
+}
+
+export function getLemmingsRescued() {
+    return lemmingsRescued;
+}
+
+export function setNumberOfLemmingsForCurrentLevel(value) {
+    numberOfLemmingsForCurrentLevel = value;
+}
+
+export function getNumberOfLemmingsForCurrentLevel() {
+    return numberOfLemmingsForCurrentLevel;
+}
+
+export function setCurrentTool(value) {
+    currentTool = value;
+}
+
+export function getCurrentTool() {
+    return currentTool;
 }
