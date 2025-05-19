@@ -1,5 +1,5 @@
 import { localize } from './localization.js';
-import { setNumberOfLemmingsForCurrentLevel, getNumberOfLemmingsForCurrentLevel, setLemmingsRescued, getLemmingNames, getDebugMode, AIR_ENEMY_COLOR, GROUND_ENEMY_COLOR, SPAWN_COLOR, getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty, EXIT_COLOR, getLemmingsRescued } from './constantsAndGlobalVars.js';
+import { spriteSheet, spriteFrames, setNumberOfLemmingsForCurrentLevel, getNumberOfLemmingsForCurrentLevel, setLemmingsRescued, getLemmingNames, getDebugMode, AIR_ENEMY_COLOR, GROUND_ENEMY_COLOR, SPAWN_COLOR, getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty, EXIT_COLOR, getLemmingsRescued } from './constantsAndGlobalVars.js';
 import { visualCanvas, createVisualCanvas, createCollisionCanvas, updateCamera } from './ui.js';
 import { capitalizeString } from './utilities.js';
 
@@ -123,7 +123,13 @@ export function gameLoop(time = 0) {
 
     for (const lemming of getLemmingsObjects()) {
       if (lemming.active) {
-        drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green');
+        updateLemmingAnimation(lemming, deltaTime);
+
+        const row = getSpriteRowForLemming(lemming.state, lemming.facing);
+        const col = lemming.frameIndex;
+        const spriteIndex = row * 20 + col;
+
+        drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex);
       }
     }
 
@@ -262,13 +268,25 @@ function checkAllCollisions() {
   });
 }
 
-function drawInstances(ctx, x, y, width, height, type, color) {
+function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null) {
     const cameraX = getCameraX();
-    ctx.fillStyle = color;
 
     if (type === 'lemming') {
-        ctx.fillRect(x - cameraX, y, width, height);
+        if (spriteIndex !== null && spriteFrames[spriteIndex]) {
+            const frame = spriteFrames[spriteIndex];
+            ctx.drawImage(
+                spriteSheet,
+                frame.x, frame.y,
+                frame.w, frame.h,
+                x - cameraX, y,
+                width, height
+            );
+        } else {
+            ctx.fillStyle = color;
+            ctx.fillRect(x - cameraX, y, width, height);
+        }
     } else if (type === 'enemy') {
+        ctx.fillStyle = color;
         ctx.beginPath(); 
         ctx.arc(
             100,
@@ -760,6 +778,27 @@ function drawDetectedObjects(ctx, detectedObjects) {
   });
 }
 
+function getSpriteRowForLemming(state, facing) {
+  if (state === 'walking') {
+    return facing === 'right' ? 0 : 1;
+  }
+  return 0;
+}
+
+function updateLemmingAnimation(lemming, deltaTime) {
+  if (lemming.frameTime === undefined) {
+    lemming.frameTime = 0;
+    lemming.frameIndex = 0;
+  }
+
+  const ANIMATION_SPEED = 100;
+  lemming.frameTime += deltaTime;
+
+  if (lemming.frameTime >= ANIMATION_SPEED) {
+    lemming.frameTime = 0;
+    lemming.frameIndex = (lemming.frameIndex + 1) % 8;
+  }
+}
 
 export function setGameState(newState) {
     //console.log("Setting game state to " + newState);

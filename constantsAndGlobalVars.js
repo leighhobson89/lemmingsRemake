@@ -23,7 +23,7 @@ export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
 export const NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE = 10;
 export const INITIAL_SPEED_LEMMING = 1;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
-export const LEMMING_WIDTH = 5;
+export const LEMMING_WIDTH = 20;
 export const LEMMING_HEIGHT = 20;
 export const TURN_COOLDOWN = 10;
 export const GRAVITY_SPEED = 4; //0.05
@@ -35,7 +35,6 @@ export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
 export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
 export const EXIT_COLOR = { r: 0, g: 255, b: 0 };
 
-
 export const SPRITE_SIZE = 10;
 export const SHEET_WIDTH = 200;
 export const SHEET_HEIGHT = 200;
@@ -44,7 +43,7 @@ export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_SIZE;
 export const spriteSheet = new Image();
 spriteSheet.src = './assets/sprites/spritesheet.png';
 
-const spriteFrames = []
+export const spriteFrames = []
 
 spriteSheet.onload = () => {
   for (let row = 0; row < SHEET_HEIGHT / SPRITE_SIZE; row++) {
