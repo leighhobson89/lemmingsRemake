@@ -1,9 +1,7 @@
 import { localize } from './localization.js';
-import { getCameraX, getLemmingsReleased, setLemmingsReleased, resetEnemySquares, getEnemySquares, setEnemySquares, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getNumberOfEnemySquaresToInitialize, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty } from './constantsAndGlobalVars.js';
-import { visualCanvas, createVisualCanvas, collisionCanvas, collisionCtx, createCollisionCanvas, updateCamera } from './ui.js';
+import { getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, resetEnemySquares, getEnemySquares, setEnemySquares, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getNumberOfEnemySquaresToInitialize, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty } from './constantsAndGlobalVars.js';
+import { visualCanvas, createVisualCanvas, createCollisionCanvas, updateCamera } from './ui.js';
 import { capitalizeString } from './utilities.js';
-
-export let collisionPixels;
 
 //--------------------------------------------------------------------------------------------------------
 export async function startGame() {
@@ -31,7 +29,7 @@ export async function startGame() {
   await loadCollisionCanvas('level1');
 
   await createCollisionCanvas();
-  collisionPixels = collisionCtx.getImageData(0, 0, collisionCanvas.width, collisionCanvas.height);
+  updateCollisionPixels();
 
   const lemmingStartPosition = { x: 20, y: 100 };
   setLemmingsStartPosition(lemmingStartPosition);
@@ -75,16 +73,16 @@ export function gameLoop(time = 0) {
       );
     }
 
-    if (collisionCanvas) {
+    if (getCollisionCanvas()) {
       const cameraX = getCameraX();
       ctx.drawImage(
-        collisionCanvas,
+        getCollisionCanvas(),
         cameraX, 0,
         getElements().canvas.width,
-        collisionCanvas.height,
+        getCollisionCanvas().height,
         0, 0,
         getElements().canvas.width,
-        collisionCanvas.height
+        getCollisionCanvas().height
       );
     }
 
@@ -153,9 +151,9 @@ function releaseLemmings(deltaTime) {
 
 let lastCollisionPixels = null;
 function checkCollisionPixelsChanged() {
-  if (!collisionPixels) return;
+  if (!getCollisionPixels()) return;
 
-  const currentData = collisionPixels.data;
+  const currentData = getCollisionPixels().data;
 
   if (!lastCollisionPixels) {
     lastCollisionPixels = new Uint8ClampedArray(currentData);
@@ -326,10 +324,10 @@ function isOnGround(lemming) {
 }
 
 export function getPixelColor(x, y) {
-  if (x < 0 || y < 0 || x >= collisionCanvas.width || y >= collisionCanvas.height) return [0,0,0,0];
+  if (x < 0 || y < 0 || x >= getCollisionCanvas().width || y >= getCollisionCanvas().height) return [0,0,0,0];
 
-  const index = (y * collisionCanvas.width + x) * 4;
-  const data = collisionPixels.data;
+  const index = (y * getCollisionCanvas().width + x) * 4;
+  const data = getCollisionPixels().data;
   return [data[index], data[index + 1], data[index + 2], data[index + 3]];
 }
 
@@ -430,8 +428,8 @@ function adjustLemmingHeight(lemming) {
 }
 
 export function updateCollisionPixels() {
-  if (collisionCtx && collisionCanvas) {
-    collisionPixels = collisionCtx.getImageData(0, 0, collisionCanvas.width, collisionCanvas.height);
+  if (getCollisionCtx() && getCollisionCanvas()) {
+    setCollisionPixels(getCollisionCtx().getImageData(0, 0, getCollisionCanvas().width, getCollisionCanvas().height));
   }
 }
 

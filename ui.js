@@ -1,22 +1,15 @@
-import { getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
+import { getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
 import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
 
-export let collisionCanvas = null;
-export let collisionCtx = null;
-
 document.addEventListener('DOMContentLoaded', async () => {
     setElements();
-    
-    let isPainting = false;
     const canvas = getElements().canvas;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     // Event listeners
     canvas.addEventListener('mousemove', (e) => {
         const canvasWidth = getElements().canvas.width;
-        const canvasHeight = getElements().canvas.height;
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         
@@ -55,12 +48,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        isPainting = true;
+        setIsPainting(true);
         paintAtMouse(e, paintType);
     });
 
     canvas.addEventListener('mousemove', (e) => {
-        if (!getPaintMode() || !isPainting) return;
+        if (!getPaintMode() || !getIsPainting()) return;
         let paintType;
 
         if (e.buttons & 1) {
@@ -68,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (e.buttons & 2) {
             paintType = 'remove';
         } else {
-            isPainting = false;
+            setIsPainting(false);
             return;
         }
 
@@ -76,11 +69,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     canvas.addEventListener('mouseup', () => {
-        isPainting = false;  
+        setIsPainting(false); 
     });
 
     canvas.addEventListener('mouseleave', () => {
-        isPainting = false;   
+        setIsPainting(false); 
     });
 
     getElements().newGameMenuButton.addEventListener('click', () => {
@@ -184,7 +177,7 @@ function paintAtMouse(e, type) {
   const mouseX = rawMouseX + getCameraX();
   const radius = getBrushRadius();
 
-  if (!collisionCanvas || !collisionCtx) {
+  if (!getCollisionCanvas() || !getCollisionCtx()) {
     console.warn('Collision canvas/context not ready!');
     return;
   }
@@ -198,7 +191,9 @@ setTimeout(() => {
 }
 
 function paintCircleOnBothCanvases(centerX, centerY, radius, type) {
-if (!collisionCanvas || !collisionCtx || !visualCanvas || !visualCtx) return;
+if (!getCollisionCanvas() || !getCollisionCtx() || !visualCanvas || !visualCtx) return;
+
+  const collisionCtx = getCollisionCtx();
 
   collisionCtx.save();
   collisionCtx.beginPath();
@@ -279,14 +274,15 @@ export function disableActivateButton(button, action, activeClass) {
 }
 
 export async function createCollisionCanvas() {
-    collisionCanvas = document.createElement('canvas');
-    collisionCanvas.width = LEVEL_WIDTH;
-    collisionCanvas.height = getElements().canvas.height;
+    const collisionCanvas = document.createElement('canvas');
+    setCollisionCanvas(collisionCanvas);
+    changeCollisionCanvasProperty(LEVEL_WIDTH, 'width');
+    changeCollisionCanvasProperty(getElements().canvas.height, 'height');
 
-    collisionCtx = collisionCanvas.getContext('2d', { willReadFrequently: true });
+    setCollisionCtx(collisionCanvas.getContext('2d', { willReadFrequently: true }));
     const collisionImage = getCollisionImage();
 
-    collisionCtx.drawImage(
+    getCollisionCtx().drawImage(
     collisionImage,
     0, 0, collisionImage.width, collisionImage.height,
     0, 0, collisionCanvas.width, collisionCanvas.height

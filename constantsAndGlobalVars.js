@@ -82,6 +82,9 @@ let staticEnemies = {};
 let enemySquares = [];
 let lemmingsReleased = 0;
 let cameraX = 0;
+let collisionPixels = null;
+let collisionCanvas = null;
+let collisionCtx = null;
 
 //FLAGS
 let audioMuted;
@@ -91,6 +94,7 @@ let gameInProgress = false;
 let paintMode = false;
 let scrollLeft = false;
 let scrollRight = false;
+let isPainting = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
@@ -372,3 +376,40 @@ export function getScrollRightFlag() {
 export function setScrollRightFlag(value) {
     scrollRight = value;
 }
+
+export function getCollisionPixels() {
+    return collisionPixels;
+}
+
+export function setCollisionPixels(value) {
+    collisionPixels = value;
+}
+
+export function getCollisionCanvas() {
+    return collisionCanvas;
+}
+
+export function setCollisionCanvas(value) {
+    collisionCanvas = value;
+}
+
+export function getCollisionCtx() {
+    return collisionCtx;
+}
+
+export function setCollisionCtx(value) {
+    collisionCtx = value;
+}
+
+export function changeCollisionCanvasProperty(value, property) {
+    collisionCanvas[property] = value;
+}
+
+export function getIsPainting() {
+    return isPainting;
+}
+
+export function setIsPainting(value) {
+    isPainting = value;
+}
+
