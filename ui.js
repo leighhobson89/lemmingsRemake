@@ -1,12 +1,7 @@
-import { getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
+import { getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD } from './constantsAndGlobalVars.js';
 import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
-
-let scrollLeft = false;
-let scrollRight = false;
-
-let cameraX = 0;
 
 export let collisionCanvas = null;
 export let collisionCtx = null;
@@ -25,8 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         
-        scrollLeft = x < SCROLL_EDGE_THRESHOLD;
-        scrollRight = x > canvasWidth - SCROLL_EDGE_THRESHOLD;
+        setScrollLeftFlag(x < SCROLL_EDGE_THRESHOLD);
+        setScrollRightFlag(x > canvasWidth - SCROLL_EDGE_THRESHOLD);
     });
 
     const paintBtn = document.getElementById('paintMode');
@@ -241,12 +236,12 @@ if (!collisionCanvas || !collisionCtx || !visualCanvas || !visualCtx) return;
 }
 
 export function updateCamera() {
-    if (scrollLeft) {
-        cameraX = Math.max(0, cameraX - SCROLL_SPEED);
+    if (getScrollLeftFlag()) {
+        setCameraX(Math.max(0, getCameraX() - SCROLL_SPEED));
     }
-    if (scrollRight) {
+    if (getScrollRightFlag()) {
         const canvasWidth = getElements().canvas.width;
-        cameraX = Math.min(LEVEL_WIDTH - canvasWidth, cameraX + SCROLL_SPEED);
+        setCameraX(Math.min(LEVEL_WIDTH - canvasWidth, getCameraX() + SCROLL_SPEED));
     }
 }
 
@@ -281,14 +276,6 @@ export function disableActivateButton(button, action, activeClass) {
             button.classList.add('disabled');
             break;
     }
-}
-
-export function getCameraX() {
-    return cameraX;
-}
-
-export function setCameraX(value) {
-    cameraX = value;
 }
 
 export async function createCollisionCanvas() {

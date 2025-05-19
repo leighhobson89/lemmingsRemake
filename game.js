@@ -1,11 +1,9 @@
 import { localize } from './localization.js';
-import { getLemmingsReleased, setLemmingsReleased, resetEnemySquares, getEnemySquares, setEnemySquares, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getNumberOfEnemySquaresToInitialize, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty } from './constantsAndGlobalVars.js';
-import { visualCanvas, createVisualCanvas, collisionCanvas, collisionCtx, createCollisionCanvas, getCameraX, updateCamera } from './ui.js';
+import { getCameraX, getLemmingsReleased, setLemmingsReleased, resetEnemySquares, getEnemySquares, setEnemySquares, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getNumberOfEnemySquaresToInitialize, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty } from './constantsAndGlobalVars.js';
+import { visualCanvas, createVisualCanvas, collisionCanvas, collisionCtx, createCollisionCanvas, updateCamera } from './ui.js';
 import { capitalizeString } from './utilities.js';
 
-let lastFrameTime = 0;
 export let collisionPixels;
-let lastCollisionPixels = null;
 
 //--------------------------------------------------------------------------------------------------------
 export async function startGame() {
@@ -46,7 +44,7 @@ export async function startGame() {
   gameLoop();
 }
 
-
+let lastFrameTime = 0;
 export function gameLoop(time = 0) {
   if (time - lastFrameTime < FRAME_DURATION) {
     requestAnimationFrame(gameLoop);
@@ -153,6 +151,7 @@ function releaseLemmings(deltaTime) {
     }
   }
 
+let lastCollisionPixels = null;
 function checkCollisionPixelsChanged() {
   if (!collisionPixels) return;
 

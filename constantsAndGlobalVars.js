@@ -81,6 +81,7 @@ let collisionImage = null;
 let staticEnemies = {};
 let enemySquares = [];
 let lemmingsReleased = 0;
+let cameraX = 0;
 
 //FLAGS
 let audioMuted;
@@ -88,6 +89,8 @@ let languageChangedFlag;
 let beginGameState = true;
 let gameInProgress = false;
 let paintMode = false;
+let scrollLeft = false;
+let scrollRight = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
@@ -344,4 +347,28 @@ export function getLemmingsReleased() {
 
 export function setLemmingsReleased(value) {
     lemmingsReleased = value;
+}
+
+export function getCameraX() {
+    return cameraX;
+}
+
+export function setCameraX(value) {
+    cameraX = value;
+}
+
+export function getScrollLeftFlag() {
+    return scrollLeft;
+}
+
+export function setScrollLeftFlag(value) {
+    scrollLeft = value;
+}
+
+export function getScrollRightFlag() {
+    return scrollRight;
+}
+
+export function setScrollRightFlag(value) {
+    scrollRight = value;
 }
