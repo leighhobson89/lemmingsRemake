@@ -30,6 +30,32 @@ export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
 
+export const SPRITE_SIZE = 10;
+export const SHEET_WIDTH = 200;
+export const SHEET_HEIGHT = 200;
+export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_SIZE;
+
+export const spriteSheet = new Image();
+spriteSheet.src = './assets/sprites/spritesheet.png';
+
+const spriteFrames = []
+
+spriteSheet.onload = () => {
+  for (let row = 0; row < SHEET_HEIGHT / SPRITE_SIZE; row++) {
+    for (let col = 0; col < SHEET_WIDTH / SPRITE_SIZE; col++) {
+      spriteFrames.push({
+        x: col * SPRITE_SIZE,
+        y: row * SPRITE_SIZE,
+        w: SPRITE_SIZE,
+        h: SPRITE_SIZE
+      });
+    }
+  }
+
+  console.log('Sprite cache ready:', spriteFrames.length, 'frames');
+};
+
+
 export function setLemmingsStartPosition({ x, y }) {
     const lemming = getLemmingObject();
     lemming.x = x;
