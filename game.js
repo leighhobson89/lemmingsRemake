@@ -1,5 +1,5 @@
 import { localize } from './localization.js';
-import { spriteSheet, spriteFrames, setNumberOfLemmingsForCurrentLevel, getNumberOfLemmingsForCurrentLevel, setLemmingsRescued, getLemmingNames, getDebugMode, AIR_ENEMY_COLOR, GROUND_ENEMY_COLOR, SPAWN_COLOR, getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty, EXIT_COLOR, getLemmingsRescued } from './constantsAndGlobalVars.js';
+import { FRAMES_PER_ROW, spriteSheet, spriteFrames, setNumberOfLemmingsForCurrentLevel, getNumberOfLemmingsForCurrentLevel, setLemmingsRescued, getLemmingNames, getDebugMode, AIR_ENEMY_COLOR, GROUND_ENEMY_COLOR, SPAWN_COLOR, getCollisionCanvas, getCollisionCtx, getCollisionPixels, setCollisionPixels, getCameraX, getLemmingsReleased, setLemmingsReleased, getStaticEnemies, setStaticEnemies, resetLemmingsObjects, getLemmingsObjects, setLemmingsObjects, pushNewLemmingToLemmingsObjects, getNewLemmingObject, getReleaseRate, setReleaseRate, getLemmingLevelData, FRAME_DURATION, GRAVITY_SPEED, setLemmingsStartPosition, LEVEL_WIDTH, setGameStateVariable, getBeginGameStatus, getMaxAttemptsToDrawEnemies, getLemmingObject, getMenuState, getGameVisiblePaused, getGameVisibleActive, getElements, getLanguage, getGameInProgress, gameState, PIXEL_THRESHOLD, TURN_COOLDOWN, setCollisionImage, getCollisionImage, changeCollisionImageProperty, EXIT_COLOR, getLemmingsRescued } from './constantsAndGlobalVars.js';
 import { visualCanvas, createVisualCanvas, createCollisionCanvas, updateCamera } from './ui.js';
 import { capitalizeString } from './utilities.js';
 
@@ -32,6 +32,7 @@ export async function startGame() {
   window.addEventListener('resize', updateCanvasSize);
 
   const levelData = await loadLevel('level1');
+  setReleaseRate(levelData.releaseRate);
   setNumberOfLemmingsForCurrentLevel(levelData.lemmings);
   await createVisualCanvas();
   const detectedObjects = await loadCollisionCanvas('level1');
@@ -124,11 +125,12 @@ export function gameLoop(time = 0) {
     for (const lemming of getLemmingsObjects()) {
       if (lemming.active) {
         const frameCount = getFrameCountForState(lemming.state);
-        updateLemmingAnimation(lemming, deltaTime, frameCount);
-
+        if (gameState === getGameVisibleActive()) {
+            updateLemmingAnimation(lemming, deltaTime, frameCount);
+        }
         const row = getSpriteRowForLemming(lemming.state, lemming.facing);
         const col = lemming.frameIndex;
-        const spriteIndex = row * 20 + col;
+        const spriteIndex = row * FRAMES_PER_ROW + col;
 
         drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex);
       }
@@ -792,6 +794,9 @@ function getSpriteRowForLemming(state, facing) {
   if (state === 'walking') {
     return facing === 'right' ? 0 : 1;
   }
+  if (state === 'falling') {
+    return facing === 'right' ? 2 : 3;
+  }
   return 0;
 }
 
@@ -801,7 +806,7 @@ function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
     lemming.frameIndex = 0;
   }
 
-  const ANIMATION_SPEED = 100;
+  const ANIMATION_SPEED = 80;
   lemming.frameTime += deltaTime;
 
   if (lemming.frameTime >= ANIMATION_SPEED) {

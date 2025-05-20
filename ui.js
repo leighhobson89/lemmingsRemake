@@ -1,4 +1,4 @@
-import { setCurrentTool, getCurrentTool, getDebugMode, setDebugMode, getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD, setReleaseRate, getReleaseRate } from './constantsAndGlobalVars.js';
+import { HOLD_DELAY, HOLD_INTERVAL, CLICK_THRESHOLD, setCurrentTool, getCurrentTool, getDebugMode, setDebugMode, getIsPainting, setIsPainting, changeCollisionCanvasProperty, getCollisionCanvas, getCollisionCtx, setCollisionCanvas, setCollisionCtx, getScrollLeftFlag, getScrollRightFlag, setScrollLeftFlag, setScrollRightFlag, setCameraX, getCameraX, getCollisionImage, setCollisionImage, setPaintMode, getPaintMode, SCROLL_SPEED, LEVEL_WIDTH, gameState, getLanguageChangedFlag, setLanguageChangedFlag, getLanguage, setElements, getElements, setBeginGameStatus, getGameInProgress, setGameInProgress, getGameVisiblePaused, getBeginGameStatus, getGameVisibleActive, getMenuState, getLanguageSelected, setLanguageSelected, setLanguage, getBrushRadius, SCROLL_EDGE_THRESHOLD, setReleaseRate, getReleaseRate } from './constantsAndGlobalVars.js';
 import { updateCollisionPixels, setGameState, startGame, gameLoop } from './game.js';
 import { initLocalization, localize } from './localization.js';
 import { loadGameOption, loadGame, saveGame, copySaveStringToClipBoard } from './saveLoadGame.js';
@@ -9,18 +9,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Event listeners
     // Tool button handlers
-    document.getElementById('climberTool').addEventListener('click', () => setCurrentTool('climber'));
-    document.getElementById('floaterTool').addEventListener('click', () => setCurrentTool('floater'));
-    document.getElementById('exploderTool').addEventListener('click', () => setCurrentTool('exploder'));
-    document.getElementById('blockerTool').addEventListener('click', () => setCurrentTool('blocker'));
-    document.getElementById('builderTool').addEventListener('click', () => setCurrentTool('builder'));
-    document.getElementById('basherTool').addEventListener('click', () => setCurrentTool('basher'));
-    document.getElementById('minerTool').addEventListener('click', () => setCurrentTool('miner'));
-    document.getElementById('diggerTool').addEventListener('click', () => setCurrentTool('digger'));
 
-    // Release rate controls
-    document.getElementById('releaseRateMinus').addEventListener('click', () => decreaseReleaseRate());
-    document.getElementById('releaseRatePlus').addEventListener('click', () => increaseReleaseRate());
+    setupHoldableButton(document.getElementById('releaseRateMinus'), decreaseReleaseRate);
+    setupHoldableButton(document.getElementById('releaseRatePlus'), increaseReleaseRate);
 
     // Nuke button
     document.getElementById('nukeButton').addEventListener('click', () => triggerNuke());
@@ -202,7 +193,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     setGameState(getMenuState());
     handleLanguageChange(getLanguageSelected());
-});
+})
+
+function setupHoldableButton(element, action) {
+  let pressStartTime = 0;
+  let holdTimeoutId = null;
+  let holdIntervalId = null;
+  let holdMode = false;
+
+  const start = () => {
+    pressStartTime = Date.now();
+    holdMode = false;
+
+    holdTimeoutId = setTimeout(() => {
+      holdMode = true;
+      holdIntervalId = setInterval(action, HOLD_INTERVAL);
+    }, HOLD_DELAY);
+  };
+
+  const stop = () => {
+    const pressDuration = Date.now() - pressStartTime;
+
+    clearTimeout(holdTimeoutId);
+    if (holdIntervalId) {
+      clearInterval(holdIntervalId);
+      holdIntervalId = null;
+    }
+
+    if (!holdMode && pressDuration < CLICK_THRESHOLD) {
+      action();
+    } else if (holdMode) {
+    }
+  };
+
+  element.addEventListener('mousedown', start);
+  element.addEventListener('mouseup', stop);
+  element.addEventListener('mouseleave', stop);
+}
+
 
 function paintAtMouse(e, type) {
   const ctx = getElements().canvas.getContext('2d', { willReadFrequently: true });
@@ -336,16 +364,18 @@ export async function createVisualCanvas() {
 
 export function increaseReleaseRate() {
   const currentRate = getReleaseRate();
-  if (currentRate < 99) {
-    setReleaseRate(currentRate + 1);
+  if (currentRate > 10) {
+    setReleaseRate(currentRate - 10);
   }
+  console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
 }
 
 export function decreaseReleaseRate() {
   const currentRate = getReleaseRate();
-  if (currentRate > 1) {
-    setReleaseRate(currentRate - 1);
+  if (currentRate < 990) {
+    setReleaseRate(currentRate + 10);
   }
+  console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
 }
 
 export function triggerNuke() {

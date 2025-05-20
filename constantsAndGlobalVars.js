@@ -11,6 +11,9 @@ let oldLanguage = 'en';
 //CONSTANTS
 export let gameState;
 
+export const HOLD_INTERVAL = 60;
+export const HOLD_DELAY = 800;
+export const CLICK_THRESHOLD = 800;
 export const SCROLL_SPEED = 5;
 export const SCROLL_EDGE_THRESHOLD = 50;
 export const PIXEL_THRESHOLD = 10;
@@ -23,7 +26,7 @@ export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
 export const NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE = 10;
 export const INITIAL_SPEED_LEMMING = 1;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
-export const LEMMING_WIDTH = 20;
+export const LEMMING_WIDTH = 16;
 export const LEMMING_HEIGHT = 20;
 export const TURN_COOLDOWN = 10;
 export const GRAVITY_SPEED = 4; //0.05
@@ -35,24 +38,25 @@ export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
 export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
 export const EXIT_COLOR = { r: 0, g: 255, b: 0 };
 
-export const SPRITE_SIZE = 10;
-export const SHEET_WIDTH = 200;
+export const SPRITE_WIDTH = 8;
+export const SPRITE_HEIGHT = 10;
+export const SHEET_WIDTH = 160;
 export const SHEET_HEIGHT = 200;
-export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_SIZE;
+export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_WIDTH;
 
 export const spriteSheet = new Image();
 spriteSheet.src = './assets/sprites/spritesheet.png';
 
-export const spriteFrames = []
+export const spriteFrames = [];
 
 spriteSheet.onload = () => {
-  for (let row = 0; row < SHEET_HEIGHT / SPRITE_SIZE; row++) {
-    for (let col = 0; col < SHEET_WIDTH / SPRITE_SIZE; col++) {
+  for (let row = 0; row < SHEET_HEIGHT / SPRITE_HEIGHT; row++) {
+    for (let col = 0; col < SHEET_WIDTH / SPRITE_WIDTH; col++) {
       spriteFrames.push({
-        x: col * SPRITE_SIZE,
-        y: row * SPRITE_SIZE,
-        w: SPRITE_SIZE,
-        h: SPRITE_SIZE
+        x: col * SPRITE_WIDTH,
+        y: row * SPRITE_HEIGHT,
+        w: SPRITE_WIDTH,
+        h: SPRITE_HEIGHT
       });
     }
   }
@@ -69,7 +73,8 @@ export function setLemmingsStartPosition({ x, y }) {
 
 export const lemmingLevelData = {
     level1: {
-        lemmings: 20
+        lemmings: 20, 
+        releaseRate: 200, //10 is fastest ie 99 and 990 is slowest ie 01
     }
 }
 
