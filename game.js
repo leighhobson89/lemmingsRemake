@@ -204,7 +204,14 @@ export function gameLoop(time = 0) {
             if (lemming.active) {
                 const frameCount = getFrameCountForState(lemming.state);
                 if (gameState === getGameVisibleActive()) {
-                    updateLemmingAnimation(lemming, deltaTime, frameCount);
+                    if (lemming.state === 'floating') {
+                        updateFloatingAnimation(lemming, deltaTime);
+                    } else if (lemming.state === 'floatingLanding') {
+                        updateFloatingLandingAnimation(lemming, deltaTime);
+                    } else {
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateLemmingAnimation(lemming, deltaTime, frameCount);
+                    }
                 }
                 const row = getSpriteRowForLemming(lemming.state, lemming.facing);
                 const col = lemming.frameIndex;
@@ -227,6 +234,59 @@ export function gameLoop(time = 0) {
     }
 }
 
+function updateFloatingLandingAnimation(lemming, deltaTime) {
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 3;
+    }
+
+    const ANIMATION_SPEED = 120;
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= ANIMATION_SPEED) {
+        lemming.frameTime = 0;
+        lemming.frameIndex--;
+
+        if (lemming.frameIndex < 0) {
+            lemming.state = 'walking';
+            lemming.frameIndex = 0;
+        }
+    }
+}
+
+function updateFloatingAnimation(lemming, deltaTime) {
+    let animationSpeed;
+
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 0;
+        lemming.floatingFirstCycleDone = false;
+        animationSpeed = 80;
+    } else {
+        animationSpeed = 120;
+    }
+
+    
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= animationSpeed) {
+        lemming.frameTime = 0;
+
+        if (!lemming.floatingFirstCycleDone) {
+            lemming.frameIndex++;
+            if (lemming.frameIndex > 7) {
+                lemming.frameIndex = 4;
+                lemming.floatingFirstCycleDone = true;
+            }
+        } else {
+            lemming.frameIndex++;
+            if (lemming.frameIndex > 7) {
+                lemming.frameIndex = 4;
+            }
+        }
+    }
+}
+
 function setToolsRemainingFromLevelData(startingTools) {
   for (const [tool, count] of Object.entries(startingTools)) {
     setLevelToolsRemaining(tool, count);
@@ -236,6 +296,10 @@ function setToolsRemainingFromLevelData(startingTools) {
 function getFrameCountForState(state) {
     switch (state) {
         case 'walking':
+            return 8;
+        case 'climbing':
+            return 8;
+        case 'floating':
             return 8;
         case 'digging':
             return 8;
@@ -343,7 +407,9 @@ function moveLemmingInstance(lemming) {
 
         adjustLemmingHeight(lemming);
     } else if (lemming.state === 'climbing') {
-        lemming.y -= GRAVITY_SPEED / 3;
+        lemming.y -= GRAVITY_SPEED / 8;
+    } else if (lemming.state === 'floating') {
+        lemming.y += GRAVITY_SPEED / 4;
     }
 
     const canvasHeight = getElements().canvas.height;
@@ -386,14 +452,53 @@ function applyGravity(lemming) {
             lemming.fallenDistance = 0;
             lemming.dieUponImpact = false;
         }
+
+        if (isOnGround(lemming) && lemming.state === 'floating') {
+            lemming.state = 'floatingLanding';
+            lemming.frameIndex = 3;
+            lemming.frameTime = 0;
+        }
     }
 }
 
 function checkAllCollisions() {
     getLemmingsObjects().forEach(lemming => {
         if (!lemming.active) return;
-        checkLemmingEnemyCollisions(getLemmingsObjects());
+        checkLemmingVersusNonSurfaceCollisions(getLemmingsObjects());
     });
+}
+
+function drawFloatingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
+    const frameWidth = spriteFrames[0].w;
+    const frameHeight = spriteFrames[0].h;
+
+    const frameX = (frameIndex % 8) * frameWidth;
+    const topRowY = 6 * frameHeight;
+    const bottomRowY = 7 * frameHeight;
+
+    ctx.drawImage(
+        spriteSheet,
+        frameX,
+        topRowY,
+        frameWidth,
+        frameHeight,
+        x - cameraX,
+        y - height,
+        width,
+        height
+    );
+
+    ctx.drawImage(
+        spriteSheet,
+        frameX,
+        bottomRowY,
+        frameWidth,
+        frameHeight,
+        x - cameraX,
+        y,
+        width,
+        height
+    );
 }
 
 function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null) {
@@ -401,18 +506,23 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
 
     if (type === 'lemming') {
         if (spriteIndex !== null && spriteFrames[spriteIndex]) {
-            const frame = spriteFrames[spriteIndex];
-            ctx.drawImage(
-                spriteSheet,
-                frame.x, frame.y,
-                frame.w, frame.h,
-                x - cameraX, y,
-                width, height
-            );
+            if (lemmingObject && (lemmingObject.state === 'floating' || lemmingObject.state === 'floatingLanding')) {
+                drawFloatingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX);
+            } else {
+                const frame = spriteFrames[spriteIndex];
+                ctx.drawImage(
+                    spriteSheet,
+                    frame.x, frame.y,
+                    frame.w, frame.h,
+                    x - cameraX, y,
+                    width, height
+                );
+            }
         } else {
             ctx.fillStyle = color;
             ctx.fillRect(x - cameraX, y, width, height);
         }
+
         if (lemmingObject && getDebugMode()) {
             ctx.fillStyle = 'white';
             ctx.font = '8px sans-serif';
@@ -428,7 +538,6 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
                 ctx.fillText(`DieOnImpact: ${lemmingObject.dieUponImpact ? 'true' : 'false'}`, centerX, baseY - 20);
             }
         }
-
     } else if (type === 'enemy') {
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -451,7 +560,7 @@ function rectsOverlap(r1, r2) {
         r2.y + r2.height < r1.y);
 }
 
-function checkLemmingEnemyCollisions(lemmings) {
+function checkLemmingVersusNonSurfaceCollisions(lemmings) {
     for (const lemming of lemmings) {
         if (!lemming.active) continue;
 
@@ -883,7 +992,6 @@ function adjustLemmingHeight(lemming) {
 
     if (solidPixels > 0) {
         if (solidAboveCount <= 8) {
-            // All clear above — climb
             lemming.y -= solidAboveCount;
             lemming.state = 'walking';
         } else {
@@ -923,7 +1031,7 @@ export function updateCollisionPixels() {
 function drawDetectedObjects(ctx, detectedObjects) {
     const cameraX = getCameraX();
     const radius = 20;
-    const Y_SCALE = 0.8;  // scaling factor for vertical coordinates
+    const Y_SCALE = 0.8;
 
     detectedObjects.enemiesAir.forEach(enemy => {
         const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
@@ -973,6 +1081,13 @@ function getSpriteRowForLemming(state, facing) {
     if (state === 'falling') {
         return facing === 'right' ? 2 : 3;
     }
+    if (state === 'climbing') {
+        return facing === 'right' ? 4 : 5;
+    }
+    if (state === 'floating') {
+        //handled in special case
+        return 0;
+    }
     return 0;
 }
 
@@ -1000,7 +1115,6 @@ export function handleLemmingClick(lemming) {
     return;
   }
 
-  // Always allow exploder
   if (currentTool === 'exploderTool') {
     lemming.state = actionStatesMap[currentTool];
     console.log(`Set state '${lemming.state}' for lemming ${lemming.name}`);
@@ -1008,7 +1122,6 @@ export function handleLemmingClick(lemming) {
     return;
   }
 
-  // Blocker ignores all tools except exploder
   if (lemming.state === 'blocking') {
     console.log(`Lemming ${lemming.name} is blocking and ignores ${currentTool}`);
     return;
@@ -1018,7 +1131,6 @@ export function handleLemmingClick(lemming) {
   const isFloater = lemming.tool === 'floaterTool';
   const isAthlete = lemming.tool === 'athlete';
 
-  // Handle climber/floater/athlete logic
   if (currentTool === 'climberTool' || currentTool === 'floaterTool') {
     if (isAthlete) {
       console.log(`Lemming ${lemming.name} is already an athlete and cannot be assigned ${currentTool}`);
