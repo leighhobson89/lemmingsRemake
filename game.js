@@ -208,6 +208,9 @@ export function gameLoop(time = 0) {
                         updateFloatingAnimation(lemming, deltaTime);
                     } else if (lemming.state === 'floatingLanding') {
                         updateFloatingLandingAnimation(lemming, deltaTime);
+                    } else if (lemming.state === 'toppingOut') {
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateToppingOutAnimation(lemming, deltaTime, frameCount);
                     } else {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateLemmingAnimation(lemming, deltaTime, frameCount);
@@ -231,6 +234,26 @@ export function gameLoop(time = 0) {
         updateToolButtons();
 
         requestAnimationFrame(gameLoop);
+    }
+}
+
+function updateToppingOutAnimation(lemming, deltaTime) {
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 0;
+    }
+
+    const ANIMATION_SPEED = 80;
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= ANIMATION_SPEED) {
+        lemming.frameTime = 0;
+        lemming.frameIndex++;
+
+        if (lemming.frameIndex > 7) {
+            lemming.state = 'walking';
+            lemming.frameIndex = 0;
+        }
     }
 }
 
@@ -298,6 +321,8 @@ function getFrameCountForState(state) {
         case 'walking':
             return 8;
         case 'climbing':
+            return 8;
+        case 'toppingOut':
             return 8;
         case 'floating':
             return 8;
@@ -410,7 +435,9 @@ function moveLemmingInstance(lemming) {
         lemming.y -= GRAVITY_SPEED / 8;
     } else if (lemming.state === 'floating') {
         lemming.y += GRAVITY_SPEED / 4;
-    }
+    } else if (lemming.state === 'toppingOut') {
+        lemming.y + 1;
+    } 
 
     const canvasHeight = getElements().canvas.height;
     if (lemming.y > canvasHeight) {
@@ -448,9 +475,17 @@ function applyGravity(lemming) {
         }
     } else {
         if (!isOnGround(lemming) && lemming.state !== 'floating') {
-            lemming.state = 'falling';
-            lemming.fallenDistance = 0;
-            lemming.dieUponImpact = false;
+            if (lemming.state === 'climbing') {
+               lemming.state = 'toppingOut';
+               lemming.frameIndex = 0;
+               lemming.frameTime = 0;
+            } else {
+                if (lemming.state !== 'toppingOut') {
+                    lemming.state = 'falling';
+                    lemming.fallenDistance = 0;
+                    lemming.dieUponImpact = false;
+                }
+            }
         }
 
         if (isOnGround(lemming) && lemming.state === 'floating') {
@@ -1083,6 +1118,9 @@ function getSpriteRowForLemming(state, facing) {
     }
     if (state === 'climbing') {
         return facing === 'right' ? 4 : 5;
+    }
+    if (state === 'toppingOut') {
+        return facing === 'right' ? 8 : 9;
     }
     if (state === 'floating') {
         //handled in special case
