@@ -2,6 +2,8 @@ import {
     localize
 } from './localization.js';
 import {
+    DIE_FALLING_THRESHOLD,
+    ACTIVATE_FLOAT_THRESHOLD,
     toolTypes,
     actionStatesMap,
     getLevelToolsRemaining,
@@ -203,12 +205,12 @@ export function gameLoop(time = 0) {
                 const col = lemming.frameIndex;
                 const spriteIndex = row * FRAMES_PER_ROW + col;
 
-                drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex);
+                drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
             }
         }
 
         const staticEnemies = getStaticEnemies();
-        drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red');
+        drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red', null);
         const allInactive = getNumberOfLemmingsForCurrentLevel() === getLemmingsReleased() && getLemmingsObjects().every(l => !l.active);
         if (allInactive) {
             console.log('All lemmings are now inactive - can end level');
@@ -335,6 +337,8 @@ function moveLemmingInstance(lemming) {
         }
 
         adjustLemmingHeight(lemming);
+    } else if (lemming.state === 'climbing') {
+        lemming.y -= GRAVITY_SPEED / 3;
     }
 
     const canvasHeight = getElements().canvas.height;
@@ -348,13 +352,35 @@ function applyGravity(lemming) {
 
     if (lemming.state === 'falling') {
         lemming.y += GRAVITY_SPEED;
+        lemming.fallenDistance = (lemming.fallenDistance || 0) + GRAVITY_SPEED;
+
+        if (lemming.fallenDistance > ACTIVATE_FLOAT_THRESHOLD &&
+            (lemming.tool === 'floaterTool' || lemming.tool === 'athlete') &&
+            lemming.state !== 'floating') {
+            lemming.state = 'floating';
+            return;
+        }
+
+        if (lemming.fallenDistance > DIE_FALLING_THRESHOLD &&
+            lemming.tool !== 'floaterTool' &&
+            lemming.tool !== 'athlete') {
+            lemming.dieUponImpact = true;
+        }
 
         if (isOnGround(lemming)) {
-            lemming.state = 'walking';
+            if (lemming.dieUponImpact && lemming.state === 'falling') {
+                lemming.state = 'dyingFalling';
+            } else {
+                lemming.state = 'walking';
+            }
             lemming.y = Math.floor(lemming.y);
         }
     } else {
-        if (!isOnGround(lemming)) lemming.state = 'falling';
+        if (!isOnGround(lemming) && lemming.state !== 'floating') {
+            lemming.state = 'falling';
+            lemming.fallenDistance = 0;
+            lemming.dieUponImpact = false;
+        }
     }
 }
 
@@ -365,7 +391,7 @@ function checkAllCollisions() {
     });
 }
 
-function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null) {
+function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null) {
     const cameraX = getCameraX();
 
     if (type === 'lemming') {
@@ -382,6 +408,22 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
             ctx.fillStyle = color;
             ctx.fillRect(x - cameraX, y, width, height);
         }
+        if (lemmingObject && getDebugMode()) {
+            ctx.fillStyle = 'white';
+            ctx.font = '8px sans-serif';
+            ctx.textAlign = 'center';
+
+            const baseY = y - 10;
+            const centerX = x - cameraX + width / 2;
+
+            ctx.fillText(capitalizeString(lemmingObject.state), centerX, baseY);
+
+            if (lemmingObject.state === 'falling') {
+                ctx.fillText(`Fallen: ${Math.round(lemmingObject.fallenDistance || 0)}`, centerX, baseY - 10);
+                ctx.fillText(`DieOnImpact: ${lemmingObject.dieUponImpact ? 'true' : 'false'}`, centerX, baseY - 20);
+            }
+        }
+
     } else if (type === 'enemy') {
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -750,23 +792,26 @@ function adjustLemmingHeight(lemming) {
         footX = Math.floor(lemming.x);
     }
 
-    // Initialize cooldown if undefined
     if (typeof lemming.turnCooldown === 'undefined') {
         lemming.turnCooldown = 0;
     }
 
-    // Check pixel directly above lemming top edge
     const pixelAbove = getPixelColor(footX, Math.floor(lemming.y) - 1);
-    if (lemming.turnCooldown === 0 &&
-        (pixelAbove[0] > PIXEL_THRESHOLD || pixelAbove[1] > PIXEL_THRESHOLD || pixelAbove[2] > PIXEL_THRESHOLD)) {
-        // Turn around and start cooldown
+    if (
+        lemming.turnCooldown === 0 &&
+        (pixelAbove[0] > PIXEL_THRESHOLD || pixelAbove[1] > PIXEL_THRESHOLD || pixelAbove[2] > PIXEL_THRESHOLD)
+    ) {
+        if (lemming.tool === 'climberTool' || lemming.tool === 'athlete') {
+            lemming.state = 'climbing';
+            return;
+        }
+
         lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
         lemming.dx = -lemming.dx;
-        lemming.turnCooldown = TURN_COOLDOWN; // 10 frames cooldown
-        return; // skip rest this frame to avoid weird climbing in same frame
+        lemming.turnCooldown = TURN_COOLDOWN;
+        return;
     }
 
-    // Decrement cooldown if active
     if (lemming.turnCooldown > 0) {
         lemming.turnCooldown--;
     }
@@ -814,6 +859,7 @@ function adjustLemmingHeight(lemming) {
         if (transparentCount >= 1 && transparentCount < 10) {
             lemming.y += 1;
             lemming.state = 'falling';
+            lemming.fallenDistance = 0;
         }
     }
 }

@@ -11,6 +11,8 @@ let oldLanguage = 'en';
 //CONSTANTS
 export let gameState;
 
+export const DIE_FALLING_THRESHOLD = 150;
+export const ACTIVATE_FLOAT_THRESHOLD = 100;
 export const HOLD_INTERVAL = 60;
 export const HOLD_DELAY = 800;
 export const CLICK_THRESHOLD = 800;
@@ -119,8 +121,8 @@ export const lemmingLevelData = {
         lemmings: 200,
         releaseRate: 500,
         startingTools: {
-            "climberTool": 1,
-            "floaterTool": 1,
+            "climberTool": 10,
+            "floaterTool": 10,
             "exploderTool": 1,
             "blockerTool": 1,
             "builderTool": 1,
@@ -164,7 +166,10 @@ export const lemmingObject = {
     dy: getInitialSpeedLemming(),
     facing: 'right',
     gravity: true,
+    tool: null,
     state: 'falling',
+    fallenDistance: 0,
+    dieUponImpact: false,
     active: false,
     name: null
 };
@@ -179,7 +184,10 @@ export function getNewLemmingObject() {
         dy: getInitialSpeedLemming(),
         facing: 'right',
         gravity: true,
+        tool: null,
         state: 'falling',
+        fallenDistance: 0,
+        dieUponImpact: false,
         active: false,
         name: null
     };
