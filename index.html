@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <img id="customCursor" class="d-none" src="./assets/mouse/mouseCrosshair.png" />
     <!-- Menu Container -->
     <div id="menu" class="d-flex flex-column align-items-center justify-content-center d-none">
         <h1 id="menuTitle" class="mb-4">Game Title Placeholder</h1>
@@ -65,18 +66,18 @@
             <div class="row row-cols-auto g-1">
 
                 <!-- Release Rate Controls -->
-                <div class="col"><button id="releaseRateMinus" class="btn btn-secondary w-100 releaseRateMinusClass">-</button></div>
-                <div class="col"><button id="releaseRatePlus" class="btn btn-secondary w-100 releaseRatePlusClass">+</button></div>
+                <div class="col"><button id="releaseRateMinus" class="btn btn-success w-100 releaseRateMinusClass">-</button></div>
+                <div class="col"><button id="releaseRatePlus" class="btn btn-danger w-100 releaseRatePlusClass">+</button></div>
 
                 <!-- Classic Tools -->
-                <div class="col"><button id="climberTool" class="btn btn-primary w-100 climberClass">Climber</button></div>
-                <div class="col"><button id="floaterTool" class="btn btn-primary w-100 floaterClass">Floater</button></div>
-                <div class="col"><button id="exploderTool" class="btn btn-danger w-100 exploderClass">Exploder</button></div>
-                <div class="col"><button id="blockerTool" class="btn btn-primary w-100 blockerClass">Blocker</button></div>
-                <div class="col"><button id="builderTool" class="btn btn-primary w-100 builderClass">Builder</button></div>
-                <div class="col"><button id="basherTool" class="btn btn-primary w-100 basherClass">Basher</button></div>
-                <div class="col"><button id="minerTool" class="btn btn-primary w-100 minerClass">Miner</button></div>
-                <div class="col"><button id="diggerTool" class="btn btn-primary w-100 diggerClass">Digger</button></div>
+                <div class="col"><button id="climberTool" class="btn btn-success w-100 climberClass">Climber</button></div>
+                <div class="col"><button id="floaterTool" class="btn btn-secondary w-100 floaterClass">Floater</button></div>
+                <div class="col"><button id="exploderTool" class="btn btn-secondary w-100 exploderClass">Exploder</button></div>
+                <div class="col"><button id="blockerTool" class="btn btn-secondary w-100 blockerClass">Blocker</button></div>
+                <div class="col"><button id="builderTool" class="btn btn-secondary w-100 builderClass">Builder</button></div>
+                <div class="col"><button id="basherTool" class="btn btn-secondary w-100 basherClass">Basher</button></div>
+                <div class="col"><button id="minerTool" class="btn btn-secondary w-100 minerClass">Miner</button></div>
+                <div class="col"><button id="diggerTool" class="btn btn-secondary w-100 diggerClass">Digger</button></div>
 
                 <!-- Nuke Button -->
                 <div class="col"><button id="nukeButton" class="btn btn-danger w-100 nukeClass">NUKE</button></div>

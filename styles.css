@@ -210,3 +210,14 @@ canvas {
     z-index: 998;
 }
 
+#customCursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 32px; /* Or the size of your PNG */
+  height: 32px;
+}
+.d-none {
+  display: none;
+}
+

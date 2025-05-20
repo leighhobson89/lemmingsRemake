@@ -33,16 +33,32 @@ export const GRAVITY_SPEED = 4; //0.05
 export const FPS = 60;
 export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
-export const SPAWN_COLOR = { r: 255, g: 255, b: 0 };
-export const AIR_ENEMY_COLOR = { r: 255, g: 0, b: 0 }
-export const GROUND_ENEMY_COLOR = { r: 255, g: 165, b: 0 };
-export const EXIT_COLOR = { r: 0, g: 255, b: 0 };
-
+export const SPAWN_COLOR = {
+    r: 255,
+    g: 255,
+    b: 0
+};
+export const AIR_ENEMY_COLOR = {
+    r: 255,
+    g: 0,
+    b: 0
+}
+export const GROUND_ENEMY_COLOR = {
+    r: 255,
+    g: 165,
+    b: 0
+};
+export const EXIT_COLOR = {
+    r: 0,
+    g: 255,
+    b: 0
+};
 export const SPRITE_WIDTH = 8;
 export const SPRITE_HEIGHT = 10;
 export const SHEET_WIDTH = 160;
 export const SHEET_HEIGHT = 200;
 export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_WIDTH;
+export const RELEASE_RATE_BALANCER = 5;
 
 export const spriteSheet = new Image();
 spriteSheet.src = './assets/sprites/spritesheet.png';
@@ -50,22 +66,27 @@ spriteSheet.src = './assets/sprites/spritesheet.png';
 export const spriteFrames = [];
 
 spriteSheet.onload = () => {
-  for (let row = 0; row < SHEET_HEIGHT / SPRITE_HEIGHT; row++) {
-    for (let col = 0; col < SHEET_WIDTH / SPRITE_WIDTH; col++) {
-      spriteFrames.push({
-        x: col * SPRITE_WIDTH,
-        y: row * SPRITE_HEIGHT,
-        w: SPRITE_WIDTH,
-        h: SPRITE_HEIGHT
-      });
+    for (let row = 0; row < SHEET_HEIGHT / SPRITE_HEIGHT; row++) {
+        for (let col = 0; col < SHEET_WIDTH / SPRITE_WIDTH; col++) {
+            spriteFrames.push({
+                x: col * SPRITE_WIDTH,
+                y: row * SPRITE_HEIGHT,
+                w: SPRITE_WIDTH,
+                h: SPRITE_HEIGHT
+            });
+        }
     }
-  }
 
-  console.log('Sprite cache ready:', spriteFrames.length, 'frames');
+    console.log('Sprite cache ready:', spriteFrames.length, 'frames');
 };
 
+export const urlCustomMouseCursorNormal = './assets/mouse/mouseCrosshair.png';
+export const urlCustomMouseCursorHoverLemming = './assets/mouse/mouseHoverLemming.png';
 
-export function setLemmingsStartPosition({ x, y }) {
+export function setLemmingsStartPosition({
+    x,
+    y
+}) {
     const lemming = getLemmingObject();
     lemming.x = x;
     lemming.y = y;
@@ -73,22 +94,33 @@ export function setLemmingsStartPosition({ x, y }) {
 
 export const lemmingLevelData = {
     level1: {
-        lemmings: 20, 
-        releaseRate: 200, //10 is fastest ie 99 and 990 is slowest ie 01
+        lemmings: 200,
+        releaseRate: 500,
     }
 }
 
+export const toolButtons = [
+    'climberTool',
+    'floaterTool',
+    'exploderTool',
+    'blockerTool',
+    'builderTool',
+    'basherTool',
+    'minerTool',
+    'diggerTool'
+];
+
 export const lemmingNames = [
-  "Alex", "Bailey", "Casey", "Drew", "Elliot", "Finley", "Gray", "Harper", "Indigo", "Jesse",
-  "Kai", "Logan", "Morgan", "Nico", "Ocean", "Parker", "Quinn", "Riley", "Sawyer", "Taylor",
-  "Blake", "Cameron", "Dakota", "Emery", "Flynn", "Genesis", "Haven", "Ivory", "Jaden", "Kendall",
-  "Lane", "Marlow", "Nova", "Oakley", "Phoenix", "Quincy", "Reese", "Sage", "Tatum", "Urban",
-  "Vale", "Winter", "Xen", "Yale", "Zion", "Arden", "Blaine", "Charlie", "Devon", "Emerson",
-  "Frankie", "Gale", "Hayden", "Ira", "Jules", "Karter", "Lee", "Micah", "Noel", "Onyx",
-  "Peyton", "Quade", "Rory", "Skyler", "Terry", "Umber", "Vega", "Wren", "Xander", "Yael",
-  "Zane", "Ash", "Bryn", "Cruz", "Denver", "Ellis", "Florian", "Grayce", "Hollis", "Izzy",
-  "Jory", "Kris", "Lennon", "Marlo", "Nicolette", "Oak", "Pax", "Raine", "Sasha", "Toby",
-  "Urban", "Vail", "West", "Xavi", "Yanni", "Zephyr", "Ari", "Blair", "Cyan", "Dallas"
+    "Alex", "Bailey", "Casey", "Drew", "Elliot", "Finley", "Gray", "Harper", "Indigo", "Jesse",
+    "Kai", "Logan", "Morgan", "Nico", "Ocean", "Parker", "Quinn", "Riley", "Sawyer", "Taylor",
+    "Blake", "Cameron", "Dakota", "Emery", "Flynn", "Genesis", "Haven", "Ivory", "Jaden", "Kendall",
+    "Lane", "Marlow", "Nova", "Oakley", "Phoenix", "Quincy", "Reese", "Sage", "Tatum", "Urban",
+    "Vale", "Winter", "Xen", "Yale", "Zion", "Arden", "Blaine", "Charlie", "Devon", "Emerson",
+    "Frankie", "Gale", "Hayden", "Ira", "Jules", "Karter", "Lee", "Micah", "Noel", "Onyx",
+    "Peyton", "Quade", "Rory", "Skyler", "Terry", "Umber", "Vega", "Wren", "Xander", "Yael",
+    "Zane", "Ash", "Bryn", "Cruz", "Denver", "Ellis", "Florian", "Grayce", "Hollis", "Izzy",
+    "Jory", "Kris", "Lennon", "Marlo", "Nicolette", "Oak", "Pax", "Raine", "Sasha", "Toby",
+    "Urban", "Vail", "West", "Xavi", "Yanni", "Zephyr", "Ari", "Blair", "Cyan", "Dallas"
 ];
 
 export const lemmingObject = {
@@ -106,19 +138,19 @@ export const lemmingObject = {
 };
 
 export function getNewLemmingObject() {
-  return {
-    x: 100,
-    y: 100,
-    width: LEMMING_WIDTH,
-    height: LEMMING_HEIGHT,
-    dx: getInitialSpeedLemming(),
-    dy: getInitialSpeedLemming(),
-    facing: 'right',
-    gravity: true,
-    state: 'falling',
-    active: false,
-    name: null
-  };
+    return {
+        x: 100,
+        y: 100,
+        width: LEMMING_WIDTH,
+        height: LEMMING_HEIGHT,
+        dx: getInitialSpeedLemming(),
+        dy: getInitialSpeedLemming(),
+        facing: 'right',
+        gravity: true,
+        state: 'falling',
+        active: false,
+        name: null
+    };
 }
 
 //GLOBAL VARIABLES
@@ -134,7 +166,7 @@ let collisionCanvas = null;
 let collisionCtx = null;
 let numberOfLemmingsForCurrentLevel = 0;
 let lemmingsRescued = 0;
-let currentTool = 'climber';
+let currentTool = 'climberTool';
 
 //FLAGS
 let audioMuted;
@@ -155,7 +187,7 @@ export function setElements() {
     elements = {
         menu: document.getElementById('menu'),
         menuTitle: document.getElementById('menuTitle'),
-        newGameMenuButton:  document.getElementById('newGame'),
+        newGameMenuButton: document.getElementById('newGame'),
         resumeGameMenuButton: document.getElementById('resumeFromMenu'),
         loadGameButton: document.getElementById('loadGame'),
         saveGameButton: document.getElementById('saveGame'),
@@ -175,7 +207,8 @@ export function setElements() {
         btnItalian: document.getElementById('btnItalian'),
         copyButtonSavePopup: document.getElementById('copyButtonSavePopup'),
         closeButtonSavePopup: document.getElementById('closeButtonSavePopup'),
-        overlay: document.getElementById('overlay')
+        overlay: document.getElementById('overlay'),
+        customCursor: document.getElementById('customCursor'),
     };
 }
 
@@ -385,7 +418,7 @@ export function getStaticEnemies() {
 }
 
 export function setStaticEnemies(value) {
-  Object.assign(staticEnemies, value);
+    Object.assign(staticEnemies, value);
 }
 
 export function getLemmingsReleased() {
@@ -482,4 +515,19 @@ export function setCurrentTool(value) {
 
 export function getCurrentTool() {
     return currentTool;
+}
+
+export function setCustomMouseCursor(value) {
+    const cursorElement = getElements().customCursor;
+    if (!cursorElement) return;
+    cursorElement.src = getCustomMouseCursor(value);
+}
+
+export function getCustomMouseCursor(value) {
+    switch (value) {
+        case 'normal':
+            return urlCustomMouseCursorNormal;
+        case 'hoverLemming':
+            return urlCustomMouseCursorHoverLemming;
+    }
 }
