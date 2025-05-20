@@ -65,7 +65,7 @@ import {
     latestMousePos,
     trackCursor,
     visualCanvas,
-    createVisualCanvas,
+    createPaintingCanvas,
     createCollisionCanvas,
     updateCamera,
     updateToolButtons
@@ -83,30 +83,22 @@ const detectedObjects = {
 
 //--------------------------------------------------------------------------------------------------------
 export async function startGame() {
-    const ctx = getElements().canvas.getContext('2d');
+    const canvas = getElements().canvas;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     const container = getElements().canvasContainer;
 
-    function updateCanvasSize() {
-        const canvasWidth = container.clientWidth * 0.8;
-        const canvasHeight = container.clientHeight * 0.8;
+    await updateCanvasSize(container, canvas, ctx);
 
-        getElements().canvas.style.width = `${canvasWidth}px`;
-        getElements().canvas.style.height = `${canvasHeight}px`;
-
-        getElements().canvas.width = canvasWidth;
-        getElements().canvas.height = canvasHeight;
-
-        ctx.scale(1, 1);
-    }
-
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener('resize', async () => {
+      await updateCanvasSize(container, canvas, ctx);
+    });
 
     const levelData = await loadLevel('level1');
     setReleaseRate(levelData.releaseRate);
     setNumberOfLemmingsForCurrentLevel(levelData.lemmings);
     setToolsRemainingFromLevelData(levelData.startingTools);
-    await createVisualCanvas();
+    await createPaintingCanvas();
     const detectedObjects = await loadCollisionCanvas('level1');
 
     console.log('Detected air enemy objects:', detectedObjects.enemiesAir);
@@ -133,8 +125,23 @@ export async function startGame() {
     gameLoop();
 }
 
+async function updateCanvasSize(container, canvas, ctx) {
+    const canvasWidth = container.clientWidth * 0.8;
+    const canvasHeight = container.clientHeight * 0.8;
+
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    //ctx.scale(1, 1);
+}
+
 let lastFrameTime = 0;
 export function gameLoop(time = 0) {
+    const canvas = getElements().canvas;
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
     trackCursor(latestMousePos);
     if (time - lastFrameTime < FRAME_DURATION) {
         requestAnimationFrame(gameLoop);
@@ -143,8 +150,6 @@ export function gameLoop(time = 0) {
 
     const deltaTime = time - lastFrameTime;
     lastFrameTime = time;
-
-    const ctx = getElements().canvas.getContext('2d');
 
     if (gameState === getGameVisibleActive() || gameState === getGameVisiblePaused()) {
         checkCollisionPixelsChanged();
@@ -458,11 +463,13 @@ function checkLemmingEnemyCollisions(lemmings) {
         };
 
         for (const enemy of detectedObjects.enemiesAir) {
+            const scaledMinY = enemy.minY * 0.8;
+            const scaledMaxY = enemy.maxY * 0.8;
             const enemyRect = {
                 x: enemy.minX,
-                y: enemy.minY,
+                y: scaledMinY,
                 width: enemy.maxX - enemy.minX,
-                height: enemy.maxY - enemy.minY
+                height: scaledMaxY - scaledMinY
             };
             if (rectsOverlap(lemmingRect, enemyRect)) {
                 console.log(`Air enemy triggered by lemming: ${lemming.name}`);
@@ -471,11 +478,13 @@ function checkLemmingEnemyCollisions(lemmings) {
         }
 
         for (const enemy of detectedObjects.enemiesGround) {
+            const scaledMinY = enemy.minY * 0.8;
+            const scaledMaxY = enemy.maxY * 0.8;
             const enemyRect = {
                 x: enemy.minX,
-                y: enemy.minY,
+                y: scaledMinY,
                 width: enemy.maxX - enemy.minX,
-                height: enemy.maxY - enemy.minY
+                height: scaledMaxY - scaledMinY
             };
             if (rectsOverlap(lemmingRect, enemyRect)) {
                 console.log(`Ground enemy triggered by lemming: ${lemming.name}`);
@@ -484,11 +493,13 @@ function checkLemmingEnemyCollisions(lemmings) {
         }
 
         for (const exit of detectedObjects.lemmingExits) {
+            const scaledMinY = exit.minY * 0.8;
+            const scaledMaxY = exit.maxY * 0.8;
             const exitRect = {
                 x: exit.minX,
-                y: exit.minY,
+                y: scaledMinY,
                 width: exit.maxX - exit.minX,
-                height: exit.maxY - exit.minY
+                height: scaledMaxY - scaledMinY
             };
             if (rectsOverlap(lemmingRect, exitRect)) {
                 setLemmingsRescued();
@@ -498,6 +509,7 @@ function checkLemmingEnemyCollisions(lemmings) {
         }
     }
 }
+
 
 function isOnGround(lemming) {
     const samplePoints = [
@@ -568,95 +580,35 @@ export function clearExitMarkersFromCollisionCanvas(lemmingExits) {
     ctx.putImageData(imageData, 0, 0);
 }
 
-function clearAirEnemiesFromCollisionCanvas(enemiesAir) {
-    const ctx = getCollisionCanvas().getContext('2d');
-    const canvasWidth = getCollisionCanvas().width;
-    const imageData = ctx.getImageData(0, 0, canvasWidth, getCollisionCanvas().height);
-    const data = imageData.data;
+function clearSpawnMarkersFromCollisionCanvas() {
+    const collisionCanvas = getCollisionCanvas();
+    if (!collisionCanvas) return;
 
-    enemiesAir.forEach(enemy => {
-        for (let y = enemy.minY; y <= enemy.maxY; y++) {
-            for (let x = enemy.minX; x <= enemy.maxX; x++) {
-                const index = (y * canvasWidth + x) * 4;
-                if (
-                    data[index] === AIR_ENEMY_COLOR.r &&
-                    data[index + 1] === AIR_ENEMY_COLOR.g &&
-                    data[index + 2] === AIR_ENEMY_COLOR.b
-                ) {
-                    data[index] = 0;
-                    data[index + 1] = 0;
-                    data[index + 2] = 0;
-                    data[index + 3] = 255;
-                }
-            }
-        }
-    });
+    const ctx = collisionCanvas.getContext('2d');
 
-    ctx.putImageData(imageData, 0, 0);
-}
-
-function replaceGroundEnemyColorsFromCollisionCanvas(enemiesGround) {
-    const ctx = getCollisionCanvas().getContext('2d');
-    const canvas = getCollisionCanvas();
-    const {
-        width,
-        height
-    } = canvas;
+    const width = collisionCanvas.width;
+    const height = collisionCanvas.height;
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
 
-    const PADDING = 3;
+    const tolerance = 0;
 
-    enemiesGround.forEach(enemy => {
-        const colorCount = {};
+    for (let i = 0; i < data.length; i += 4) {
+        const dr = Math.abs(data[i]     - SPAWN_COLOR.r);
+        const dg = Math.abs(data[i + 1] - SPAWN_COLOR.g);
+        const db = Math.abs(data[i + 2] - SPAWN_COLOR.b);
 
-        for (let y = enemy.minY - PADDING; y <= enemy.maxY + PADDING; y++) {
-            for (let x = enemy.minX - PADDING; x <= enemy.maxX + PADDING; x++) {
-                if (x < 0 || y < 0 || x >= width || y >= height) continue;
-
-                if (x >= enemy.minX && x <= enemy.maxX && y >= enemy.minY && y <= enemy.maxY) continue;
-
-                const index = (y * width + x) * 4;
-                const r = data[index];
-                const g = data[index + 1];
-                const b = data[index + 2];
-
-                const isAir = r === 255 && g === 0 && b === 0;
-                const isGround = r === 255 && g === 165 && b === 0;
-                if (isAir || isGround) continue;
-
-                const key = `${r},${g},${b}`;
-                colorCount[key] = (colorCount[key] || 0) + 1;
-            }
+        if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+            data[i]     = 0;
+            data[i + 1] = 0;
+            data[i + 2] = 0;
         }
-
-        const mostCommonColor = Object.entries(colorCount).reduce((a, b) => (b[1] > a[1] ? b : a), [null, 0])[0];
-        if (!mostCommonColor) return;
-
-        const [rNew, gNew, bNew] = mostCommonColor.split(',').map(Number);
-
-        for (let y = enemy.minY; y <= enemy.maxY; y++) {
-            for (let x = enemy.minX; x <= enemy.maxX; x++) {
-                const index = (y * width + x) * 4;
-                const r = data[index];
-                const g = data[index + 1];
-                const b = data[index + 2];
-
-                if (r === GROUND_ENEMY_COLOR.r && g === GROUND_ENEMY_COLOR.g && b === GROUND_ENEMY_COLOR.b) {
-                    data[index] = rNew;
-                    data[index + 1] = gNew;
-                    data[index + 2] = bNew;
-                    data[index + 3] = 255;
-                }
-            }
-        }
-    });
+    }
 
     ctx.putImageData(imageData, 0, 0);
 }
 
-
-function clearSpawnMarkersFromCollisionCanvas() {
+function clearAirEnemiesFromCollisionCanvas() {
     const collisionCanvas = getCollisionCanvas();
     if (!collisionCanvas) return;
 
@@ -667,21 +619,119 @@ function clearSpawnMarkersFromCollisionCanvas() {
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
+    const tolerance = 0;
 
-        if (
-            r === SPAWN_COLOR.r &&
-            g === SPAWN_COLOR.g &&
-            b === SPAWN_COLOR.b
-        ) {
-            data[i] = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        const dr = Math.abs(data[i]     - AIR_ENEMY_COLOR.r);
+        const dg = Math.abs(data[i + 1] - AIR_ENEMY_COLOR.g);
+        const db = Math.abs(data[i + 2] - AIR_ENEMY_COLOR.b);
+
+        if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+            data[i]     = 0;
             data[i + 1] = 0;
             data[i + 2] = 0;
-            data[i + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function replaceGroundEnemyColorsFromCollisionCanvas() {
+    const canvas = getCollisionCanvas();
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    const visited = new Uint8Array(width * height);
+    const RADIUS = 3;
+
+    function getIndex(x, y) {
+        return (y * width + x) * 4;
+    }
+
+    function isGroundEnemyPixel(x, y) {
+        const i = getIndex(x, y);
+        return (
+            data[i] === GROUND_ENEMY_COLOR.r &&
+            data[i + 1] === GROUND_ENEMY_COLOR.g &&
+            data[i + 2] === GROUND_ENEMY_COLOR.b
+        );
+    }
+
+    function floodFillEnemy(xStart, yStart) {
+        const queue = [[xStart, yStart]];
+        const enemyPixels = [];
+
+        while (queue.length) {
+            const [x, y] = queue.pop();
+            const idx = y * width + x;
+            if (visited[idx]) continue;
+            visited[idx] = 1;
+
+            if (!isGroundEnemyPixel(x, y)) continue;
+            enemyPixels.push([x, y]);
+
+            // 4-connected neighbors
+            if (x > 0) queue.push([x - 1, y]);
+            if (x < width - 1) queue.push([x + 1, y]);
+            if (y > 0) queue.push([x, y - 1]);
+            if (y < height - 1) queue.push([x, y + 1]);
+        }
+
+        return enemyPixels;
+    }
+
+    function getMostCommonSurroundingColor(enemyPixels) {
+        const colorCount = {};
+
+        for (const [x0, y0] of enemyPixels) {
+            for (let dy = -RADIUS; dy <= RADIUS; dy++) {
+                for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+                    const x = x0 + dx;
+                    const y = y0 + dy;
+                    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+                    if (Math.hypot(dx, dy) > RADIUS) continue;
+
+                    const idx = y * width + x;
+                    if (visited[idx]) continue;
+
+                    const i = getIndex(x, y);
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // Ignore ground or air pixels
+                    if ((r === 255 && g === 0 && b === 0) || (r === 255 && g === 165 && b === 0)) continue;
+
+                    const key = `${r},${g},${b}`;
+                    colorCount[key] = (colorCount[key] || 0) + 1;
+                }
+            }
+        }
+
+        const mostCommon = Object.entries(colorCount).reduce((a, b) => b[1] > a[1] ? b : a, [null, 0])[0];
+        return mostCommon ? mostCommon.split(',').map(Number) : null;
+    }
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (visited[idx] || !isGroundEnemyPixel(x, y)) continue;
+
+            const enemyPixels = floodFillEnemy(x, y);
+            const replacementColor = getMostCommonSurroundingColor(enemyPixels);
+            if (!replacementColor) continue;
+
+            for (const [ex, ey] of enemyPixels) {
+                const i = getIndex(ex, ey);
+                data[i] = replacementColor[0];
+                data[i + 1] = replacementColor[1];
+                data[i + 2] = replacementColor[2];
+            }
         }
     }
 
@@ -873,10 +923,11 @@ export function updateCollisionPixels() {
 function drawDetectedObjects(ctx, detectedObjects) {
     const cameraX = getCameraX();
     const radius = 20;
+    const Y_SCALE = 0.8;  // scaling factor for vertical coordinates
 
     detectedObjects.enemiesAir.forEach(enemy => {
         const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
-        const centerY = (enemy.minY + enemy.maxY) / 2;
+        const centerY = ((enemy.minY * Y_SCALE) + (enemy.maxY * Y_SCALE)) / 2;
 
         ctx.fillStyle = 'red';
         ctx.beginPath();
@@ -884,10 +935,9 @@ function drawDetectedObjects(ctx, detectedObjects) {
         ctx.fill();
     });
 
-    // Draw ground enemies (orange)
     detectedObjects.enemiesGround.forEach(enemy => {
         const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
-        const centerY = (enemy.minY + enemy.maxY) / 2;
+        const centerY = ((enemy.minY * Y_SCALE) + (enemy.maxY * Y_SCALE)) / 2;
 
         ctx.fillStyle = 'orange';
         ctx.beginPath();
@@ -895,10 +945,9 @@ function drawDetectedObjects(ctx, detectedObjects) {
         ctx.fill();
     });
 
-    // Draw lemming spawns (yellow)
     detectedObjects.lemmingSpawns.forEach(spawn => {
         const centerX = (spawn.minX + spawn.maxX) / 2 - cameraX;
-        const centerY = (spawn.minY + spawn.maxY) / 2;
+        const centerY = ((spawn.minY * Y_SCALE) + (spawn.maxY * Y_SCALE)) / 2;
 
         ctx.fillStyle = 'yellow';
         ctx.beginPath();
@@ -906,32 +955,10 @@ function drawDetectedObjects(ctx, detectedObjects) {
         ctx.fill();
     });
 
-
-    // Draw ground enemies (orange)
-    detectedObjects.enemiesGround.forEach(enemy => {
-        const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
-        const centerY = (enemy.minY + enemy.maxY) / 2;
-
-        ctx.fillStyle = 'orange';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.fill();
-    });
-
-    // Draw lemming spawns (yellow)
-    detectedObjects.lemmingSpawns.forEach(spawn => {
-        const centerX = (spawn.minX + spawn.maxX) / 2 - cameraX;
-        const centerY = (spawn.minY + spawn.maxY) / 2;
-
-        ctx.fillStyle = 'yellow';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.fill();
-    });
-    //draw lemming exit
     detectedObjects.lemmingExits.forEach(exit => {
         const centerX = (exit.minX + exit.maxX) / 2 - cameraX;
-        const centerY = (exit.minY + exit.maxY) / 2;
+        const centerY = ((exit.minY * Y_SCALE) + (exit.maxY * Y_SCALE)) / 2;
+
         ctx.fillStyle = 'green';
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);

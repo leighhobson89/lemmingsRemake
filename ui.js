@@ -369,9 +369,6 @@ function setupHoldableButton(element, action) {
 
 
 function paintAtMouse(e, type) {
-    const ctx = getElements().canvas.getContext('2d', {
-        willReadFrequently: true
-    });
     const rect = canvas.getBoundingClientRect();
     const rawMouseX = Math.floor(e.clientX - rect.left);
     const mouseY = Math.floor(e.clientY - rect.top);
@@ -477,15 +474,19 @@ export function disableActivateButton(button, action, activeClass) {
 export async function createCollisionCanvas() {
     const collisionCanvas = document.createElement('canvas');
     setCollisionCanvas(collisionCanvas);
+
     changeCollisionCanvasProperty(LEVEL_WIDTH, 'width');
     changeCollisionCanvasProperty(getElements().canvas.height, 'height');
 
-    setCollisionCtx(collisionCanvas.getContext('2d', {
+    const ctx = collisionCanvas.getContext('2d', {
         willReadFrequently: true
-    }));
-    const collisionImage = getCollisionImage();
+    });
+    ctx.imageSmoothingEnabled = false;
 
-    getCollisionCtx().drawImage(
+    setCollisionCtx(ctx);
+
+    const collisionImage = getCollisionImage();
+    ctx.drawImage(
         collisionImage,
         0, 0, collisionImage.width, collisionImage.height,
         0, 0, collisionCanvas.width, collisionCanvas.height
@@ -495,7 +496,7 @@ export async function createCollisionCanvas() {
 export let visualCanvas = null;
 export let visualCtx = null;
 
-export async function createVisualCanvas() {
+export async function createPaintingCanvas() {
     visualCanvas = document.createElement('canvas');
     visualCanvas.width = LEVEL_WIDTH;
     visualCanvas.height = getElements().canvas.height;
