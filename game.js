@@ -2,6 +2,11 @@ import {
     localize
 } from './localization.js';
 import {
+    toolTypes,
+    actionStatesMap,
+    getLevelToolsRemaining,
+    setLevelToolsRemaining,
+    getCurrentTool,
     RELEASE_RATE_BALANCER,
     FRAMES_PER_ROW,
     spriteSheet,
@@ -60,7 +65,8 @@ import {
     visualCanvas,
     createVisualCanvas,
     createCollisionCanvas,
-    updateCamera
+    updateCamera,
+    updateToolButtons
 } from './ui.js';
 import {
     capitalizeString
@@ -97,6 +103,7 @@ export async function startGame() {
     const levelData = await loadLevel('level1');
     setReleaseRate(levelData.releaseRate);
     setNumberOfLemmingsForCurrentLevel(levelData.lemmings);
+    setToolsRemainingFromLevelData(levelData.startingTools);
     await createVisualCanvas();
     const detectedObjects = await loadCollisionCanvas('level1');
 
@@ -207,8 +214,16 @@ export function gameLoop(time = 0) {
             console.log('All lemmings are now inactive - can end level');
         }
 
+        updateToolButtons();
+
         requestAnimationFrame(gameLoop);
     }
+}
+
+function setToolsRemainingFromLevelData(startingTools) {
+  for (const [tool, count] of Object.entries(startingTools)) {
+    setLevelToolsRemaining(tool, count);
+  }
 }
 
 function getFrameCountForState(state) {
@@ -902,6 +917,80 @@ function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
         lemming.frameIndex = (lemming.frameIndex + 1) % frameCount;
     }
 }
+
+export function handleLemmingClick(lemming) {
+  const currentTool = getCurrentTool();
+  const toolsRemaining = getLevelToolsRemaining();
+
+  if (!toolsRemaining[currentTool] || toolsRemaining[currentTool] <= 0) {
+    console.log(`No ${currentTool} tools left to use.`);
+    return;
+  }
+
+  // Always allow exploder
+  if (currentTool === 'exploderTool') {
+    lemming.state = actionStatesMap[currentTool];
+    console.log(`Set state '${lemming.state}' for lemming ${lemming.name}`);
+    setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+    return;
+  }
+
+  // Blocker ignores all tools except exploder
+  if (lemming.state === 'blocking') {
+    console.log(`Lemming ${lemming.name} is blocking and ignores ${currentTool}`);
+    return;
+  }
+
+  const isClimber = lemming.tool === 'climberTool';
+  const isFloater = lemming.tool === 'floaterTool';
+  const isAthlete = lemming.tool === 'athlete';
+
+  // Handle climber/floater/athlete logic
+  if (currentTool === 'climberTool' || currentTool === 'floaterTool') {
+    if (isAthlete) {
+      console.log(`Lemming ${lemming.name} is already an athlete and cannot be assigned ${currentTool}`);
+      return;
+    }
+
+    if (
+      (currentTool === 'climberTool' && isClimber) ||
+      (currentTool === 'floaterTool' && isFloater)
+    ) {
+      console.log(`Lemming ${lemming.name} already has ${currentTool}`);
+      return;
+    }
+
+    if ((currentTool === 'climberTool' && isFloater) ||
+        (currentTool === 'floaterTool' && isClimber)) {
+      lemming.tool = 'athlete';
+      console.log(`Lemming ${lemming.name} is now an athlete`);
+    } else {
+      lemming.tool = currentTool;
+      console.log(`Assigned tool ${currentTool} to lemming ${lemming.name}`);
+    }
+
+    setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+    return;
+  }
+
+  // Apply state change if different
+  if (currentTool in actionStatesMap) {
+    const newState = actionStatesMap[currentTool];
+
+    if (lemming.state === newState) {
+      console.log(`Lemming ${lemming.name} is already ${newState}`);
+      return;
+    }
+
+    lemming.state = newState;
+    console.log(`Changed state to '${newState}' for lemming ${lemming.name}`);
+    setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+    return;
+  }
+
+  console.log(`Tool ${currentTool} does not map to an action or tool.`);
+}
+
 
 export function setGameState(newState) {
     //console.log("Setting game state to " + newState);

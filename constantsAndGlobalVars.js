@@ -92,10 +92,41 @@ export function setLemmingsStartPosition({
     lemming.y = y;
 }
 
+export const toolTypes = new Set(['climberTool', 'floaterTool']);
+export const actionStatesMap = {
+  builderTool: 'building',
+  blockerTool: 'blocking',
+  exploderTool: 'exploding',
+  basherTool: 'bashing',
+  minerTool: 'mining',
+  diggerTool: 'digging',
+};
+
+const levelToolsRemaining = {
+    climberTool: 1,
+    floaterTool: 1,
+    exploderTool: 1,
+    blockerTool: 1,
+    builderTool: 1,
+    basherTool: 1,
+    minerTool: 1,
+    diggerTool: 1
+}
+
 export const lemmingLevelData = {
     level1: {
         lemmings: 200,
         releaseRate: 500,
+        startingTools: {
+            climberTool: 1,
+            floaterTool: 1,
+            exploderTool: 1,
+            blockerTool: 1,
+            builderTool: 1,
+            basherTool: 1,
+            minerTool: 1,
+            diggerTool: 1
+        }
     }
 }
 
@@ -530,4 +561,12 @@ export function getCustomMouseCursor(value) {
         case 'hoverLemming':
             return urlCustomMouseCursorHoverLemming;
     }
+}
+
+export function getLevelToolsRemaining() {
+    return levelToolsRemaining;
+}
+
+export function setLevelToolsRemaining(value, property) {
+    levelToolsRemaining[property] = value;
 }

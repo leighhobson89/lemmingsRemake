@@ -1,4 +1,5 @@
 import {
+    getLevelToolsRemaining,
     toolButtons,
     setCustomMouseCursor,
     getLemmingsObjects,
@@ -53,7 +54,8 @@ import {
     updateCollisionPixels,
     setGameState,
     startGame,
-    gameLoop
+    gameLoop,
+    handleLemmingClick
 } from './game.js';
 import {
     initLocalization,
@@ -98,8 +100,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     });
-
-
 
     canvas.addEventListener('mouseenter', () => {
         isCursorInsideCanvas = true;
@@ -185,19 +185,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     canvas.addEventListener('mousedown', (e) => {
-        if (!getPaintMode()) return;
-        let paintType;
+        if (getPaintMode()) {
+            let paintType;
 
-        if (e.button === 0) {
-            paintType = 'add';
-        } else if (e.button === 2) {
-            paintType = 'remove';
-        } else {
+            if (e.button === 0) {
+                paintType = 'add';
+            } else if (e.button === 2) {
+                paintType = 'remove';
+            } else {
+                return;
+            }
+
+            setIsPainting(true);
+            paintAtMouse(e, paintType);
             return;
         }
 
-        setIsPainting(true);
-        paintAtMouse(e, paintType);
+        const rect = getElements().canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const worldX = mouseX + getCameraX();
+        const worldY = mouseY;
+
+        let closestLemming = null;
+        let minDistance = Infinity;
+
+        for (const lemming of getLemmingsObjects()) {
+            if (isPointInsideLemming(worldX, worldY, lemming)) {
+                const centerX = lemming.x + lemming.width / 2;
+                const centerY = lemming.y + lemming.height / 2;
+                const dx = worldX - centerX;
+                const dy = worldY - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestLemming = lemming;
+                }
+            }
+        }
+
+        if (closestLemming) {
+            handleLemmingClick(closestLemming);
+        }
     });
 
     canvas.addEventListener('mouseup', () => {
@@ -551,7 +582,6 @@ function checkIfHoveringLemming(event) {
 
     for (const lemming of getLemmingsObjects()) {
         if (isPointInsideLemming(worldX, worldY, lemming)) {
-            console.log(`Hovering over lemming: ${lemming.name}`);
             return true;
         }
     }
@@ -577,8 +607,6 @@ function enableCustomCursor() {
     if (cursor) {
         cursor.classList.remove('d-none');
     }
-
-    console.log('[enableCustomCursor] Custom cursor enabled');
 }
 
 function disableCustomCursor() {
@@ -589,6 +617,17 @@ function disableCustomCursor() {
     if (cursor) {
         cursor.classList.add('d-none');
     }
+}
 
-    console.log('[disableCustomCursor] Custom cursor disabled');
+export function updateToolButtons() {
+  const toolsRemaining = getLevelToolsRemaining();
+
+  Object.entries(toolsRemaining).forEach(([toolId, count]) => {
+    const button = document.getElementById(toolId);
+    if (!button) return;
+
+    const baseLabel = button.dataset.baseLabel || button.innerHTML.split('<br>')[0];
+    button.dataset.baseLabel = baseLabel;
+    button.innerHTML = `${baseLabel}<br>(${count})`;
+  });
 }
