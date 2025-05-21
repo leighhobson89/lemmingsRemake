@@ -53,6 +53,23 @@ export const EXIT_COLOR = {
     g: 255,
     b: 0
 };
+export const boomingAreaFrames = [
+    [
+        [8, 9, 10],
+        [8, 9, 10],
+        [8, 9, 10]
+    ],
+    [
+        [11, 12, 13],
+        [11, 12, 13],
+        [11, 12, 13]
+    ],
+    [
+        [null, null, null],
+        [null, 15, null],
+        [null, 15, null]
+    ]
+];
 export const SPRITE_WIDTH = 8;
 export const SPRITE_HEIGHT = 10;
 export const SHEET_WIDTH = 160;
@@ -121,7 +138,7 @@ export const lemmingLevelData = {
         startingTools: {
             "climberTool": 10,
             "floaterTool": 10,
-            "exploderTool": 1,
+            "exploderTool": 10,
             "blockerTool": 6,
             "builderTool": 1,
             "basherTool": 1,
@@ -578,4 +595,8 @@ export function getLevelToolsRemaining() {
 
 export function setLevelToolsRemaining(property, value) {
     levelToolsRemaining[property] = value;
+}
+
+export function getBoomingAreaFrames() {
+    return boomingAreaFrames;
 }
