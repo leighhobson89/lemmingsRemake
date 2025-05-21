@@ -219,12 +219,13 @@ export function gameLoop(time = 0) {
                 const row = getSpriteRowForLemming(lemming.state, lemming.facing);
                 const col = lemming.frameIndex;
                 const spriteIndex = row * FRAMES_PER_ROW + col;
-
+                ctx.imageSmoothingEnabled = false;
                 drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
             }
         }
 
         const staticEnemies = getStaticEnemies();
+        ctx.imageSmoothingEnabled = false;
         drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red', null);
         const allInactive = getNumberOfLemmingsForCurrentLevel() === getLemmingsReleased() && getLemmingsObjects().every(l => !l.active);
         if (allInactive) {
