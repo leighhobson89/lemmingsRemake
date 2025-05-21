@@ -233,6 +233,12 @@ export function gameLoop(time = 0) {
                     } else if (lemming.state === 'disintegrating') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateDisintegratingAnimation(lemming, deltaTime, frameCount);
+                    } else if (lemming.state === 'building') {
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateBuildingAnimation(lemming, deltaTime, frameCount);
+                    } else if (lemming.state === 'runOutOfSlabs') {
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateRunOutOfSlabsAnimation(lemming, deltaTime, frameCount);
                     } else {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateLemmingAnimation(lemming, deltaTime, frameCount);
@@ -259,6 +265,56 @@ export function gameLoop(time = 0) {
         requestAnimationFrame(gameLoop);
     }
 } 
+
+function updateRunOutOfSlabsAnimation(lemming, deltaTime) {
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 0;
+    }
+
+    const ANIMATION_SPEED = 80;
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= ANIMATION_SPEED) {
+        lemming.frameTime = 0;
+        lemming.frameIndex++;
+
+        if (lemming.frameIndex === 15) {
+            lemming.state = 'walking';
+            lemming.frameIndex = 0;
+        }
+    }
+}
+
+function updateBuildingAnimation(lemming, deltaTime) {
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 0;
+    }
+
+    const ANIMATION_SPEED = 80;
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= ANIMATION_SPEED) {
+        lemming.frameTime = 0;
+        lemming.frameIndex++;
+
+        if (lemming.frameIndex > 15) {
+            lemming.buildingSlabs = (lemming.buildingSlabs || 0) + 1;
+            lemming.frameIndex = 0;
+
+            buildSlab(lemming);
+
+            if (lemming.buildingSlabs === 10 || lemming.buildingSlabs === 11 || lemming.buildingSlabs === 12) {
+                console.log('play running out sound');
+            }
+
+            if (lemming.buildingSlabs === 12) {
+                lemming.state = 'runOutOfSlabs';
+            }
+        }
+    }
+}
 
 function updateDisintegratingAnimation(lemming, deltaTime) {
     if (lemming.frameTime === undefined) {
@@ -311,8 +367,6 @@ function updateCountDownAnimation(lemming, deltaTime) {
     }
 
     const ANIMATION_SPEED = 1000;
-
-    // Adjust for fast forward
     const effectiveDelta = getIsFastForward() ? deltaTime * FAST_FORWARD_AMOUNT : deltaTime;
 
     lemming.countdownFrameTime += effectiveDelta;
@@ -477,6 +531,10 @@ function getFrameCountForState(state) {
             return 16;
         case 'disintegrating':
             return 16;
+        case 'building':
+            return 16;
+        case 'runOutOfSlabs':
+            return 16;
         default:
             return 8;
     }
@@ -580,9 +638,14 @@ function moveLemmingInstance(lemming) {
     } else if (lemming.state === 'floating') {
         lemming.y += GRAVITY_SPEED / 4;
     } else if (lemming.state === 'toppingOut') {
-        lemming.y + 1;
-    } else if ((lemming.countdownActive && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking') {
-        lemming.x + 0
+        lemming.y += 1;
+    } else if ((lemming.countdownActive && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking' || lemming.state === 'runOutOfSlabs') {
+        lemming.x += 0
+    } else if (lemming.state === 'building') {
+        if(lemming.frameIndex === 15) {
+            lemming.x += 2;
+            lemming.y -= 1;
+        }
     }
 
     const canvasHeight = getElements().canvas.height;
@@ -626,7 +689,7 @@ function applyGravity(lemming) {
                lemming.frameIndex = 0;
                lemming.frameTime = 0;
             } else {
-                if (lemming.state !== 'toppingOut' && lemming.state !== 'booming' && lemming.state !== 'disintegrating' ) {
+                if (lemming.state !== 'toppingOut' && lemming.state !== 'booming' && lemming.state !== 'disintegrating' && lemming.state !== 'building'  && lemming.state !== 'runOutOfSlabs') {
                     if (lemming.state === 'blocking') {
                       lemming.collisionBox = false;
                     }
@@ -854,7 +917,7 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
         }
 
         // Collision box check with other lemmings
-        if (lemming.state === 'walking') {
+        if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { //TO CHECK FOR BUILDING AND MINING
             for (const other of lemmings) {
                 if (
                     other === lemming ||
@@ -1376,6 +1439,12 @@ function getSpriteRowForLemming(state, facing) {
     if (state === 'disintegrating') {
         return 13;
     }
+    if (state === 'building') {
+        return facing === 'right' ? 14 : 15;
+    }
+    if (state === 'runOutOfSlabs') {
+        return 16;
+    }
     return 0;
 }
 
@@ -1466,6 +1535,33 @@ export function handleLemmingClick(lemming) {
 
   console.log(`Tool ${currentTool} does not map to an action or tool.`);
 }
+
+function buildSlab(lemming) {
+    const collisionCanvas = getCollisionCanvas();
+    if (!collisionCanvas) return;
+
+    const ctx = collisionCanvas.getContext('2d');
+    ctx.fillStyle = 'white';
+
+    const slabWidth = 12;
+    const slabHeight = 3;
+
+    const slabY = lemming.y + lemming.height; // bottom of lemming
+
+    const lemmingCenterX = lemming.x + lemming.width / 2;
+    let slabX;
+
+    if (lemming.facing === 'right') {
+        // Start 3px to the right of center, extend further right
+        slabX = Math.round(lemmingCenterX + 3);
+    } else {
+        // Start 3px to the left of center, extend further left
+        slabX = Math.round(lemmingCenterX - 3 - slabWidth);
+    }
+
+    ctx.fillRect(slabX, slabY, slabWidth, slabHeight);
+}
+
 
 
 export function setGameState(newState) {
