@@ -331,6 +331,8 @@ function getFrameCountForState(state) {
             return 8;
         case 'falling':
             return 4;
+        case 'blocking':
+            return 16;
         default:
             return 8;
     }
@@ -438,7 +440,9 @@ function moveLemmingInstance(lemming) {
         lemming.y += GRAVITY_SPEED / 4;
     } else if (lemming.state === 'toppingOut') {
         lemming.y + 1;
-    } 
+    } else if (lemming.state === 'blocking') { //stationary
+        lemming.x + 0;
+    }
 
     const canvasHeight = getElements().canvas.height;
     if (lemming.y > canvasHeight) {
@@ -482,6 +486,9 @@ function applyGravity(lemming) {
                lemming.frameTime = 0;
             } else {
                 if (lemming.state !== 'toppingOut') {
+                    if (lemming.state === 'blocking') {
+                      lemming.collisionBox = false;
+                    }
                     lemming.state = 'falling';
                     lemming.fallenDistance = 0;
                     lemming.dieUponImpact = false;
@@ -607,6 +614,7 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
             height: lemming.height
         };
 
+        // Enemy collision checks...
         for (const enemy of detectedObjects.enemiesAir) {
             const scaledMinY = enemy.minY * 0.8;
             const scaledMaxY = enemy.maxY * 0.8;
@@ -650,6 +658,43 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
                 setLemmingsRescued();
                 console.log(`Lemming ${lemming.name} reached the exit, now rescued ${getLemmingsRescued()} out of a possible ${getNumberOfLemmingsForCurrentLevel()}`);
                 lemming.active = false;
+            }
+        }
+
+        // Collision box check with other lemmings
+        if (lemming.state === 'walking') {
+            for (const other of lemmings) {
+                if (
+                    other === lemming ||
+                    !other.active ||
+                    other.collisionBox !== true
+                ) continue;
+
+                const collisionBoxLeft = {
+                    x: other.x,
+                    y: other.y,
+                    width: 4,
+                    height: other.height
+                };
+
+                const collisionBoxRight = {
+                    x: other.x + other.width - 2,
+                    y: other.y,
+                    width: 4,
+                    height: other.height
+                };
+
+                if (
+                    rectsOverlap(lemmingRect, collisionBoxLeft) ||
+                    rectsOverlap(lemmingRect, collisionBoxRight)
+                ) {
+                    lemming.facing = (lemming.facing === 'left') ? 'right' : 'left';
+                    lemming.dx = -lemming.dx;
+
+                    lemming.x += (lemming.facing === 'left') ? -2 : 2;
+
+                    break;
+                }
             }
         }
     }
@@ -1039,18 +1084,18 @@ function adjustLemmingHeight(lemming) {
             }
         }
     } else {
-        let transparentCount = 0;
+        let airPixelCount = 0;
         for (let offset = 1; offset <= 10; offset++) {
             const sampleY = bottomY + offset;
             const pixel = getPixelColor(footX, sampleY);
             if (pixel[0] <= 10 && pixel[1] <= 10 && pixel[2] <= 10) {
-                transparentCount++;
+                airPixelCount++;
             } else {
                 break;
             }
         }
 
-        if (transparentCount >= 1 && transparentCount < 10) {
+        if (airPixelCount >= 1 && airPixelCount < 10) {
             lemming.y += 1;
             lemming.state = 'falling';
             lemming.fallenDistance = 0;
@@ -1126,6 +1171,9 @@ function getSpriteRowForLemming(state, facing) {
     if (state === 'floating') {
         //handled in special case
         return 0;
+    }
+    if (state === 'blocking') {
+        return 10;
     }
     return 0;
 }
@@ -1207,6 +1255,9 @@ export function handleLemmingClick(lemming) {
     }
 
     lemming.state = newState;
+    if (newState === 'blocking') {
+      lemming.collisionBox = true;
+    }
     console.log(`Changed state to '${newState}' for lemming ${lemming.name}`);
     setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
     return;

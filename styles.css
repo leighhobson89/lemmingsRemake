@@ -122,14 +122,13 @@ button.disabled {
 }
 
 #buttonRow {
-    width: 80%;
+    width: 100%;
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
 }
 
 #buttonRow button {
-    width: 200px;
+    width: 230px;
     height: 50px;
     margin: 0 10px;
     text-align: center;
@@ -139,9 +138,10 @@ button.disabled {
 }
 
 canvas {
-    width: 80%;
+    width: 100%;
     height: auto;
     border: 1px solid white;
+    margin-bottom: 20px;
 }
 
 .disabled {

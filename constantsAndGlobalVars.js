@@ -19,8 +19,6 @@ export const CLICK_THRESHOLD = 800;
 export const SCROLL_SPEED = 5;
 export const SCROLL_EDGE_THRESHOLD = 50;
 export const PIXEL_THRESHOLD = 10;
-export const CANVAS_WIDTH = 800;
-export const CANVAS_HEIGHT = 600;
 export const LEVEL_WIDTH = 3000;
 export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
@@ -124,7 +122,7 @@ export const lemmingLevelData = {
             "climberTool": 10,
             "floaterTool": 10,
             "exploderTool": 1,
-            "blockerTool": 1,
+            "blockerTool": 6,
             "builderTool": 1,
             "basherTool": 1,
             "minerTool": 1,
@@ -170,6 +168,7 @@ export const lemmingObject = {
     state: 'falling',
     fallenDistance: 0,
     dieUponImpact: false,
+    collisionBox: false,
     active: false,
     name: null
 };
@@ -188,6 +187,7 @@ export function getNewLemmingObject() {
         state: 'falling',
         fallenDistance: 0,
         dieUponImpact: false,
+        collisionBox: false,
         active: false,
         name: null
     };
