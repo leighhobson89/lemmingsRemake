@@ -211,6 +211,9 @@ export function gameLoop(time = 0) {
                     } else if (lemming.state === 'toppingOut') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateToppingOutAnimation(lemming, deltaTime, frameCount);
+                    } else if (lemming.state === 'dyingFalling') {
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateDyingFallingAnimation(lemming, deltaTime, frameCount);
                     } else {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateLemmingAnimation(lemming, deltaTime, frameCount);
@@ -235,6 +238,26 @@ export function gameLoop(time = 0) {
         updateToolButtons();
 
         requestAnimationFrame(gameLoop);
+    }
+} 
+
+function updateDyingFallingAnimation(lemming, deltaTime) {
+    if (lemming.frameTime === undefined) {
+        lemming.frameTime = 0;
+        lemming.frameIndex = 0;
+    }
+
+    const ANIMATION_SPEED = 80;
+    lemming.frameTime += deltaTime;
+
+    if (lemming.frameTime >= ANIMATION_SPEED) {
+        lemming.frameTime = 0;
+        lemming.frameIndex++;
+
+        if (lemming.frameIndex === 15) {
+            lemming.active = false;
+            lemming.frameIndex = 0;
+        }
     }
 }
 
@@ -332,6 +355,8 @@ function getFrameCountForState(state) {
         case 'falling':
             return 4;
         case 'blocking':
+            return 16;
+        case 'dyingFalling':
             return 16;
         default:
             return 8;
@@ -1174,6 +1199,9 @@ function getSpriteRowForLemming(state, facing) {
     }
     if (state === 'blocking') {
         return 10;
+    }
+    if (state === 'dyingFalling') {
+        return 11;
     }
     return 0;
 }
