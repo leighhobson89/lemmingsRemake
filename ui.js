@@ -1,4 +1,5 @@
 import { 
+    FAST_FORWARD_AMOUNT,
     setLemmingsReleased,
     NUKE_CLICK_THRESHOLD,   
     setFrameDuration,
@@ -541,7 +542,7 @@ export function decreaseReleaseRate() {
 
 export function toggleFastForward() {
     setIsFastForward(!getIsFastForward());
-    setFrameDuration(getIsFastForward() ? BASE_FRAME_DURATION / 4 : BASE_FRAME_DURATION);
+    setFrameDuration(getIsFastForward() ? BASE_FRAME_DURATION / FAST_FORWARD_AMOUNT : BASE_FRAME_DURATION);
 
     const btn = document.getElementById('fastForwardButton');
     btn.classList.remove('btn-success', 'btn-warning');

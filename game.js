@@ -2,6 +2,8 @@ import {
     localize
 } from './localization.js';
 import {
+    FAST_FORWARD_AMOUNT,
+    getIsFastForward,
     getCountdownAreaFrames,
     getBoomingAreaFrames,   
     DIE_FALLING_THRESHOLD,
@@ -309,7 +311,11 @@ function updateCountDownAnimation(lemming, deltaTime) {
     }
 
     const ANIMATION_SPEED = 1000;
-    lemming.countdownFrameTime += deltaTime;
+
+    // Adjust for fast forward
+    const effectiveDelta = getIsFastForward() ? deltaTime * FAST_FORWARD_AMOUNT : deltaTime;
+
+    lemming.countdownFrameTime += effectiveDelta;
 
     if (lemming.countdownFrameTime >= ANIMATION_SPEED) {
         lemming.countdownFrameTime = 0;
@@ -318,7 +324,13 @@ function updateCountDownAnimation(lemming, deltaTime) {
         if (lemming.countdownFrameIndex >= getCountdownAreaFrames().length) {
             lemming.countdownFrameIndex = 0;
             lemming.countdownActive = false;
-            lemming.state === 'floating' || lemming.state === 'floatingLanding' || lemming.state === 'falling' ? lemming.state = 'booming' : lemming.state = 'exploding';
+
+            lemming.state = (
+                lemming.state === 'floating' ||
+                lemming.state === 'floatingLanding' ||
+                lemming.state === 'falling'
+            ) ? 'booming' : 'exploding';
+
             lemming.frameIndex = 0;
         }
     }
@@ -510,13 +522,16 @@ function initializeLemmings(lemmingsQuantity, startPosition) {
 }
 
 let releaseTimer = 0;
-
 function releaseLemmings(deltaTime) {
     if (getLemmingsReleased() >= getLemmingsObjects().length) {
         return;
     }
 
-    const releaseRate = getReleaseRate() * RELEASE_RATE_BALANCER;
+    let releaseRate = getReleaseRate() * RELEASE_RATE_BALANCER;
+
+    if (getIsFastForward()) {
+        releaseRate /= FAST_FORWARD_AMOUNT;
+    }
 
     releaseTimer += deltaTime;
 
@@ -528,7 +543,6 @@ function releaseLemmings(deltaTime) {
 }
 
 let lastCollisionPixels = null;
-
 function checkCollisionPixelsChanged() {
     if (!getCollisionPixels()) return;
 
