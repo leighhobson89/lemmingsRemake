@@ -65,9 +65,14 @@ export const boomingAreaFrames = [
         [11, 12, 13]
     ],
     [
+        [14, 15, 16],
+        [14, 15, 16],
+        [14, 15, 16]
+    ],
+    [
         [null, null, null],
-        [null, 15, null],
-        [null, 15, null]
+        [null, 18, null],
+        [null, 18, null]
     ]
 ];
 export const SPRITE_WIDTH = 8;
