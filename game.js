@@ -2,8 +2,6 @@ import {
     localize
 } from './localization.js';
 import {
-    SPRITE_HEIGHT,
-    SPRITE_WIDTH,
     getCountdownAreaFrames,
     getBoomingAreaFrames,   
     DIE_FALLING_THRESHOLD,
@@ -42,7 +40,7 @@ import {
     getReleaseRate,
     setReleaseRate,
     getLemmingLevelData,
-    FRAME_DURATION,
+    getFrameDuration,
     GRAVITY_SPEED,
     setLemmingsStartPosition,
     LEVEL_WIDTH,
@@ -130,7 +128,7 @@ export async function startGame() {
 }
 
 async function updateCanvasSize(container, canvas, ctx) {
-    const canvasWidth = container.clientWidth * 0.8;
+    const canvasWidth = container.clientWidth;
     const canvasHeight = container.clientHeight * 0.8;
 
     canvas.style.width = `${canvasWidth}px`;
@@ -147,7 +145,7 @@ export function gameLoop(time = 0) {
     const canvas = getElements().canvas;
     const ctx = canvas.getContext('2d', {willReadFrequently: true});
     trackCursor(latestMousePos);
-    if (time - lastFrameTime < FRAME_DURATION) {
+    if (time - lastFrameTime < getFrameDuration()) {
         requestAnimationFrame(gameLoop);
         return;
     }

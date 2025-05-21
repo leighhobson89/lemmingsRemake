@@ -11,6 +11,12 @@ let oldLanguage = 'en';
 //CONSTANTS
 export let gameState;
 
+export const BASE_FPS = 30;
+export const BASE_FRAME_DURATION = 1000 / BASE_FPS;
+
+let isFastForward = false;
+let frameDuration = BASE_FRAME_DURATION;
+
 export const DIE_FALLING_THRESHOLD = 150;
 export const ACTIVATE_FLOAT_THRESHOLD = 100;
 export const HOLD_INTERVAL = 60;
@@ -24,15 +30,14 @@ export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
 export const GAME_VISIBLE_ACTIVE = 'gameVisibleActive';
 export const NUMBER_OF_ENEMY_SQUARES_TO_INITIALIZE = 10;
-export const INITIAL_SPEED_LEMMING = 1;
+export const INITIAL_SPEED_LEMMING = 1.5;
 export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
 export const LEMMING_WIDTH = 20;
 export const LEMMING_HEIGHT = 25;
 export const TURN_COOLDOWN = 10;
 export const GRAVITY_SPEED = 4; //0.05
-export const FPS = 60;
-export const FRAME_DURATION = 1000 / FPS;
 export const COLLISION_CHECK_INTERVAL = 20;
+export const NUKE_CLICK_THRESHOLD = 1000;
 export const SPAWN_COLOR = {
     r: 255,
     g: 255,
@@ -611,3 +616,19 @@ export function getBoomingAreaFrames() {
 export function getCountdownAreaFrames() {
     return countdownAreaFrames;
 }
+
+export function getIsFastForward() {
+    return isFastForward;
+}
+
+export function setIsFastForward(value) {
+    isFastForward = value;
+}
+
+export function setFrameDuration(value) {
+    frameDuration = value;
+}
+
+export function getFrameDuration() {
+    return frameDuration;
+}   

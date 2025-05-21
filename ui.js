@@ -1,4 +1,10 @@
-import {
+import { 
+    setLemmingsReleased,
+    NUKE_CLICK_THRESHOLD,   
+    setFrameDuration,
+    getFrameDuration,
+    BASE_FPS,
+    BASE_FRAME_DURATION,
     getLevelToolsRemaining,
     toolButtons,
     setCustomMouseCursor,
@@ -48,7 +54,10 @@ import {
     getBrushRadius,
     SCROLL_EDGE_THRESHOLD,
     setReleaseRate,
-    getReleaseRate
+    getReleaseRate,
+    setIsFastForward,
+    getIsFastForward,
+    getNumberOfLemmingsForCurrentLevel
 } from './constantsAndGlobalVars.js';
 import {
     updateCollisionPixels,
@@ -112,13 +121,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Event listeners
-    // Tool button handlers
-
+    // release rate Buttons
     setupHoldableButton(document.getElementById('releaseRateMinus'), decreaseReleaseRate);
     setupHoldableButton(document.getElementById('releaseRatePlus'), increaseReleaseRate);
 
     // Nuke button
-    document.getElementById('nukeButton').addEventListener('click', () => triggerNuke());
+    let lastNukeClickTime = 0;
+    document.getElementById('nukeButton').addEventListener('click', () => {
+        const now = Date.now();
+
+        if (now - lastNukeClickTime <= NUKE_CLICK_THRESHOLD) {
+            triggerNuke();
+            lastNukeClickTime = 0;
+        } else {
+            lastNukeClickTime = now;
+        }
+    });
 
     // Fast forward button
     document.getElementById('fastForwardButton').addEventListener('click', () => toggleFastForward());
@@ -521,12 +539,13 @@ export function decreaseReleaseRate() {
     console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
 }
 
-export function triggerNuke() {
-
-}
-
 export function toggleFastForward() {
+    setIsFastForward(!getIsFastForward());
+    setFrameDuration(getIsFastForward() ? BASE_FRAME_DURATION / 4 : BASE_FRAME_DURATION);
 
+    const btn = document.getElementById('fastForwardButton');
+    btn.classList.remove('btn-success', 'btn-warning');
+    btn.classList.add(getIsFastForward() ? 'btn-success' : 'btn-warning');
 }
 
 export function getCustomMouseCursor(value) {
@@ -631,4 +650,21 @@ export function updateToolButtons() {
     button.dataset.baseLabel = baseLabel;
     button.innerHTML = `${baseLabel}<br>(${count})`;
   });
+}
+
+function triggerNuke() {
+    setLemmingsReleased(getNumberOfLemmingsForCurrentLevel());
+    const lemmings = getLemmingsObjects();
+    let totalDelay = 0;
+
+    for (const lemming of lemmings) {
+        if (lemming.active) {
+            const delay = Math.random() * 50 + 50;
+            totalDelay += delay;
+
+            setTimeout(() => {
+                lemming.countdownActive = true;
+            }, totalDelay);
+        }
+    }
 }
