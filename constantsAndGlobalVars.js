@@ -75,6 +75,7 @@ export const boomingAreaFrames = [
         [null, 18, null]
     ]
 ];
+export const countdownAreaFrames = [8, 9, 10, 11, 12];
 export const SPRITE_WIDTH = 8;
 export const SPRITE_HEIGHT = 10;
 export const SHEET_WIDTH = 160;
@@ -118,7 +119,7 @@ export const toolTypes = new Set(['climberTool', 'floaterTool']);
 export const actionStatesMap = {
   builderTool: 'building',
   blockerTool: 'blocking',
-  exploderTool: 'exploding',
+  exploderTool: 'countdown',
   basherTool: 'bashing',
   minerTool: 'mining',
   diggerTool: 'digging',
@@ -191,6 +192,7 @@ export const lemmingObject = {
     fallenDistance: 0,
     dieUponImpact: false,
     collisionBox: false,
+    countdownActive: false,
     active: false,
     name: null
 };
@@ -210,6 +212,7 @@ export function getNewLemmingObject() {
         fallenDistance: 0,
         dieUponImpact: false,
         collisionBox: false,
+        countdownActive: false,
         active: false,
         name: null
     };
@@ -604,4 +607,8 @@ export function setLevelToolsRemaining(property, value) {
 
 export function getBoomingAreaFrames() {
     return boomingAreaFrames;
+}
+
+export function getCountdownAreaFrames() {
+    return countdownAreaFrames;
 }

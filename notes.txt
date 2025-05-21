@@ -1,3 +1,12 @@
+countdown
 exploding
 booming
 disintegrating
+
+
+
+
+
+blockers animate wrong when have  - using walking animation when state is countdown regardless of what it should use
+if you make a walker into a blocker while a countdown is on then it doesnt get set as inactive so continues blocking and screws up the animation - simple state issue for when not tired
+think i should remove countodwn state altogether and just have the flag countdownActive and then use this as a condition for the probelms above
