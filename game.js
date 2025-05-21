@@ -210,9 +210,6 @@ export function gameLoop(time = 0) {
                 if (gameState === getGameVisibleActive()) {
                     if (lemming.state === 'floating') {
                         updateFloatingAnimation(lemming, deltaTime);
-                        if (lemming.countdownActive) {
-                            updateCountDownAnimation(lemming, deltaTime);
-                        }
                     } else if (lemming.state === 'floatingLanding') {
                         updateFloatingLandingAnimation(lemming, deltaTime);
                     } else if (lemming.state === 'toppingOut') {
@@ -221,10 +218,6 @@ export function gameLoop(time = 0) {
                     } else if (lemming.state === 'dyingFalling') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateDyingFallingAnimation(lemming, deltaTime, frameCount);
-                    } else if (lemming.countdownActive) {
-                        updateCountDownAnimation(lemming, deltaTime);
-                        const frameCount = getFrameCountForState(lemming.state);
-                        updateLemmingAnimation(lemming, deltaTime, frameCount);
                     } else if (lemming.state === 'exploding') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateExplodingAnimation(lemming, deltaTime, frameCount);
@@ -242,6 +235,10 @@ export function gameLoop(time = 0) {
                     } else {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateLemmingAnimation(lemming, deltaTime, frameCount);
+                    }
+
+                    if (lemming.countdownActive) {
+                        updateCountDownAnimation(lemming, deltaTime);
                     }
                 }
                 const row = getSpriteRowForLemming(lemming.state, lemming.facing);
@@ -280,6 +277,7 @@ function updateRunOutOfSlabsAnimation(lemming, deltaTime) {
         lemming.frameIndex++;
 
         if (lemming.frameIndex === 15) {
+            lemming.lastState = lemming.state;
             lemming.state = 'walking';
             lemming.frameIndex = 0;
         }
@@ -292,24 +290,27 @@ function updateBuildingAnimation(lemming, deltaTime) {
         lemming.frameIndex = 0;
     }
 
-    const ANIMATION_SPEED = 80;
+    const ANIMATION_SPEED = 70;
     lemming.frameTime += deltaTime;
 
     if (lemming.frameTime >= ANIMATION_SPEED) {
         lemming.frameTime = 0;
         lemming.frameIndex++;
 
+        if (lemming.frameIndex === 10) {
+            buildSlab(lemming);
+        }
+
         if (lemming.frameIndex > 15) {
             lemming.buildingSlabs = (lemming.buildingSlabs || 0) + 1;
             lemming.frameIndex = 0;
-
-            buildSlab(lemming);
 
             if (lemming.buildingSlabs === 10 || lemming.buildingSlabs === 11 || lemming.buildingSlabs === 12) {
                 console.log('play running out sound');
             }
 
             if (lemming.buildingSlabs === 12) {
+                lemming.lastState = lemming.state;
                 lemming.state = 'runOutOfSlabs';
             }
         }
@@ -352,7 +353,8 @@ function updateBoomingAnimation(lemming, deltaTime) {
         if (lemming.frameIndex >= getBoomingAreaFrames().length) {
             lemming.frameIndex = 0;
             if (isOnGround(lemming)) {  
-              lemming.state = 'disintegrating';
+                lemming.lastState = lemming.state;
+                lemming.state = 'disintegrating';
             } else {
               lemming.active = false;
             }
@@ -404,6 +406,7 @@ function updateExplodingAnimation(lemming, deltaTime) {
         lemming.frameIndex++;
 
         if (lemming.frameIndex === 15) {
+            lemming.lastState = lemming.state;
             lemming.state = 'booming';
             lemming.frameIndex = 0;
         }
@@ -444,6 +447,7 @@ function updateToppingOutAnimation(lemming, deltaTime) {
         lemming.frameIndex++;
 
         if (lemming.frameIndex > 7) {
+            lemming.lastState = lemming.state;
             lemming.state = 'walking';
             lemming.frameIndex = 0;
         }
@@ -464,6 +468,7 @@ function updateFloatingLandingAnimation(lemming, deltaTime) {
         lemming.frameIndex--;
 
         if (lemming.frameIndex < 0) {
+            lemming.lastState = lemming.state;
             lemming.state = 'walking';
             lemming.frameIndex = 0;
         }
@@ -619,7 +624,6 @@ function checkCollisionPixelsChanged() {
         }
     }
 
-    // Update snapshot for next frame
     lastCollisionPixels = new Uint8ClampedArray(currentData);
 }
 
@@ -642,11 +646,16 @@ function moveLemmingInstance(lemming) {
     } else if ((lemming.countdownActive && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking' || lemming.state === 'runOutOfSlabs') {
         lemming.x += 0
     } else if (lemming.state === 'building') {
-        if(lemming.frameIndex === 15) {
-            lemming.x += 2;
+        if (lemming.frameIndex === 15) {
+            if (lemming.facing === 'right') {
+                lemming.x += 2;
+            } else if (lemming.facing === 'left') {
+                lemming.x -= 2;
+            }
             lemming.y -= 1;
         }
     }
+
 
     const canvasHeight = getElements().canvas.height;
     if (lemming.y > canvasHeight) {
@@ -664,6 +673,7 @@ function applyGravity(lemming) {
         if (lemming.fallenDistance > ACTIVATE_FLOAT_THRESHOLD &&
             (lemming.tool === 'floaterTool' || lemming.tool === 'athlete') &&
             lemming.state !== 'floating') {
+            lemming.lastState = lemming.state;
             lemming.state = 'floating';
             return;
         }
@@ -676,8 +686,10 @@ function applyGravity(lemming) {
 
         if (isOnGround(lemming)) {
             if (lemming.dieUponImpact && lemming.state === 'falling') {
+                lemming.lastState = lemming.state;
                 lemming.state = 'dyingFalling';
             } else {
+                lemming.lastState = lemming.state;
                 lemming.state = 'walking';
             }
             lemming.y = Math.floor(lemming.y);
@@ -685,14 +697,16 @@ function applyGravity(lemming) {
     } else {
         if (!isOnGround(lemming) && lemming.state !== 'floating') {
             if (lemming.state === 'climbing') {
-               lemming.state = 'toppingOut';
-               lemming.frameIndex = 0;
-               lemming.frameTime = 0;
+                lemming.lastState = lemming.state;
+                lemming.state = 'toppingOut';
+                lemming.frameIndex = 0;
+                lemming.frameTime = 0;
             } else {
-                if (lemming.state !== 'toppingOut' && lemming.state !== 'booming' && lemming.state !== 'disintegrating' && lemming.state !== 'building'  && lemming.state !== 'runOutOfSlabs') {
+                if (lemming.state !== 'toppingOut' && lemming.state !== 'booming' && lemming.state !== 'disintegrating' && lemming.state !== 'building' && lemming.state !== 'runOutOfSlabs') {
                     if (lemming.state === 'blocking') {
                       lemming.collisionBox = false;
                     }
+                    lemming.lastState = lemming.state;
                     lemming.state = 'falling';
                     lemming.fallenDistance = 0;
                     lemming.dieUponImpact = false;
@@ -701,6 +715,7 @@ function applyGravity(lemming) {
         }
 
         if (isOnGround(lemming) && lemming.state === 'floating') {
+            lemming.lastState = lemming.state;
             lemming.state = 'floatingLanding';
             lemming.frameIndex = 3;
             lemming.frameTime = 0;
@@ -869,7 +884,6 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
             height: lemming.height
         };
 
-        // Enemy collision checks...
         for (const enemy of detectedObjects.enemiesAir) {
             const scaledMinY = enemy.minY * 0.8;
             const scaledMaxY = enemy.maxY * 0.8;
@@ -916,8 +930,7 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
             }
         }
 
-        // Collision box check with other lemmings
-        if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { //TO CHECK FOR BUILDING AND MINING
+        if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { //TO CHECK FOR MINING
             for (const other of lemmings) {
                 if (
                     other === lemming ||
@@ -1297,6 +1310,7 @@ function adjustLemmingHeight(lemming) {
         (pixelAbove[0] > PIXEL_THRESHOLD || pixelAbove[1] > PIXEL_THRESHOLD || pixelAbove[2] > PIXEL_THRESHOLD)
     ) {
         if (lemming.tool === 'climberTool' || lemming.tool === 'athlete') {
+            lemming.lastState = lemming.state;
             lemming.state = 'climbing';
             return;
         }
@@ -1329,7 +1343,10 @@ function adjustLemmingHeight(lemming) {
     if (solidPixels > 0) {
         if (solidAboveCount <= 8) {
             lemming.y -= solidAboveCount;
-            lemming.state = 'walking';
+            lemming.lastState = lemming.state;
+            if (!lemming.countdownActive) {
+                lemming.state = 'walking';
+            }
         } else {
             // Wall too tall — turn around
             if (lemming.turnCooldown === 0) {
@@ -1352,6 +1369,7 @@ function adjustLemmingHeight(lemming) {
 
         if (airPixelCount >= 1 && airPixelCount < 10) {
             lemming.y += 1;
+            lemming.lastState = lemming.state;
             lemming.state = 'falling';
             lemming.fallenDistance = 0;
         }
@@ -1515,7 +1533,6 @@ export function handleLemmingClick(lemming) {
     return;
   }
 
-  // Apply state change if different
   if (currentTool in actionStatesMap) {
     const newState = actionStatesMap[currentTool];
 
@@ -1546,26 +1563,22 @@ function buildSlab(lemming) {
     const slabWidth = 12;
     const slabHeight = 3;
 
-    const slabY = lemming.y + lemming.height; // bottom of lemming
+    const slabY = lemming.y + lemming.height -2;
 
     const lemmingCenterX = lemming.x + lemming.width / 2;
     let slabX;
 
     if (lemming.facing === 'right') {
-        // Start 3px to the right of center, extend further right
-        slabX = Math.round(lemmingCenterX + 3);
+        slabX = Math.round(lemmingCenterX + 1);
     } else {
-        // Start 3px to the left of center, extend further left
-        slabX = Math.round(lemmingCenterX - 3 - slabWidth);
+        slabX = Math.round(lemmingCenterX - 1 - slabWidth);
     }
 
     ctx.fillRect(slabX, slabY, slabWidth, slabHeight);
+    updateCollisionPixels();
 }
 
-
-
 export function setGameState(newState) {
-    //console.log("Setting game state to " + newState);
     setGameStateVariable(newState);
 
     switch (newState) {

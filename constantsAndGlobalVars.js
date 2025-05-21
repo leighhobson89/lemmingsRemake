@@ -23,7 +23,7 @@ export const ACTIVATE_FLOAT_THRESHOLD = 100;
 export const HOLD_INTERVAL = 60;
 export const HOLD_DELAY = 800;
 export const CLICK_THRESHOLD = 800;
-export const SCROLL_SPEED = 5;
+export const SCROLL_SPEED = 10;
 export const SCROLL_EDGE_THRESHOLD = 50;
 export const PIXEL_THRESHOLD = 10;
 export const LEVEL_WIDTH = 3000;
@@ -151,7 +151,7 @@ export const lemmingLevelData = {
             "floaterTool": 10,
             "exploderTool": 10,
             "blockerTool": 6,
-            "builderTool": 1,
+            "builderTool": 15,
             "basherTool": 1,
             "minerTool": 1,
             "diggerTool": 1
