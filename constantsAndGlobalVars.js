@@ -119,7 +119,6 @@ export const toolTypes = new Set(['climberTool', 'floaterTool']);
 export const actionStatesMap = {
   builderTool: 'building',
   blockerTool: 'blocking',
-  exploderTool: 'countdown',
   basherTool: 'bashing',
   minerTool: 'mining',
   diggerTool: 'digging',

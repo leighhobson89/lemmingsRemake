@@ -210,6 +210,9 @@ export function gameLoop(time = 0) {
                 if (gameState === getGameVisibleActive()) {
                     if (lemming.state === 'floating') {
                         updateFloatingAnimation(lemming, deltaTime);
+                        if (lemming.countdownActive) {
+                            updateCountDownAnimation(lemming, deltaTime);
+                        }
                     } else if (lemming.state === 'floatingLanding') {
                         updateFloatingLandingAnimation(lemming, deltaTime);
                     } else if (lemming.state === 'toppingOut') {
@@ -218,12 +221,10 @@ export function gameLoop(time = 0) {
                     } else if (lemming.state === 'dyingFalling') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateDyingFallingAnimation(lemming, deltaTime, frameCount);
-                    } else if (lemming.state === 'countdown' || lemming.countdownActive) {
+                    } else if (lemming.countdownActive) {
                         updateCountDownAnimation(lemming, deltaTime);
-                        if (lemming.dx > 0) {
-                          const frameCount = getFrameCountForState(lemming.state);
-                          updateLemmingAnimation(lemming, deltaTime, frameCount);
-                        }
+                        const frameCount = getFrameCountForState(lemming.state);
+                        updateLemmingAnimation(lemming, deltaTime, frameCount);
                     } else if (lemming.state === 'exploding') {
                         const frameCount = getFrameCountForState(lemming.state);
                         updateExplodingAnimation(lemming, deltaTime, frameCount);
@@ -237,7 +238,7 @@ export function gameLoop(time = 0) {
                         updateLemmingAnimation(lemming, deltaTime, frameCount);
                     }
                 }
-                const row = getSpriteRowForLemming(lemming.state, lemming.facing, lemming.dx, lemming.countdownActive);
+                const row = getSpriteRowForLemming(lemming.state, lemming.facing);
                 const col = lemming.frameIndex;
                 const spriteIndex = row * FRAMES_PER_ROW + col;
                 ctx.imageSmoothingEnabled = false;
@@ -294,7 +295,11 @@ function updateBoomingAnimation(lemming, deltaTime) {
 
         if (lemming.frameIndex >= getBoomingAreaFrames().length) {
             lemming.frameIndex = 0;
-            lemming.state = 'disintegrating';
+            if (isOnGround(lemming)) {  
+              lemming.state = 'disintegrating';
+            } else {
+              lemming.active = false;
+            }
         }
     }
 }
@@ -315,7 +320,8 @@ function updateCountDownAnimation(lemming, deltaTime) {
         if (lemming.countdownFrameIndex >= getCountdownAreaFrames().length) {
             lemming.countdownFrameIndex = 0;
             lemming.countdownActive = false;
-            lemming.state = 'exploding';
+            lemming.state === 'floating' || lemming.state === 'floatingLanding' || lemming.state === 'falling' ? lemming.state = 'booming' : lemming.state = 'exploding';
+            lemming.frameIndex = 0;
         }
     }
 }
@@ -548,15 +554,10 @@ function checkCollisionPixelsChanged() {
 }
 
 function moveLemmingInstance(lemming) {
-    if (lemming.state === 'walking' || ((lemming.countdownActive || lemming.state === 'countdown') && !lemming.collisionBox)) {
+    if (lemming.state === 'walking') {
         lemming.x += lemming.dx;
 
-        if (lemming.x < 0) {
-            lemming.active = false;
-            return;
-        }
-
-        if (lemming.x + lemming.width > LEVEL_WIDTH) {
+        if (lemming.x < 0 || (lemming.x + lemming.width > LEVEL_WIDTH)) {
             lemming.active = false;
             return;
         }
@@ -568,7 +569,7 @@ function moveLemmingInstance(lemming) {
         lemming.y += GRAVITY_SPEED / 4;
     } else if (lemming.state === 'toppingOut') {
         lemming.y + 1;
-    } else if (((lemming.state === 'countdown' || lemming.countdownActive) && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking') {
+    } else if ((lemming.countdownActive && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking') {
         lemming.x + 0
     }
 
@@ -613,7 +614,7 @@ function applyGravity(lemming) {
                lemming.frameIndex = 0;
                lemming.frameTime = 0;
             } else {
-                if (lemming.state !== 'toppingOut') {
+                if (lemming.state !== 'toppingOut' && lemming.state !== 'booming' && lemming.state !== 'disintegrating' ) {
                     if (lemming.state === 'blocking') {
                       lemming.collisionBox = false;
                     }
@@ -699,8 +700,8 @@ function drawBoomingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
     }
 }
 
-function drawCountdownMarkerOverLemming(ctx, x, y, width, height, frameIndex, cameraX) {
-    const col = getCountdownAreaFrames()[frameIndex];
+function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex, cameraX, state) {
+    const col = getCountdownAreaFrames()[countdownIndex];
     const row = 4;
 
     const spriteIndex = row * FRAMES_PER_ROW + col;
@@ -712,13 +713,11 @@ function drawCountdownMarkerOverLemming(ctx, x, y, width, height, frameIndex, ca
         sprite.x, sprite.y,
         sprite.w, sprite.h,
         x - cameraX,
-        y - height,
+        state === 'floating' ? y - (height * 2) : y - height,
         width,
         height
     );
 }
-
-
 
 function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null) {
     const cameraX = getCameraX();
@@ -728,10 +727,10 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
             if (lemmingObject && (lemmingObject.state === 'floating' || lemmingObject.state === 'floatingLanding')) {
                 drawFloatingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX);
             } else if (lemmingObject && (lemmingObject.state === 'booming')) {
-                drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX);
+                drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex ?? 0, cameraX);
             } else {
-                if (lemmingObject && (lemmingObject.state === 'countdown' || lemmingObject.countdownActive)) {
-                  drawCountdownMarkerOverLemming(ctx, x, y, width, height, lemmingObject.countdownFrameIndex, cameraX);
+                if (lemmingObject && lemmingObject.countdownActive) {
+                  drawCountdownMarkerOverLemming(ctx, x, y, width, height, lemmingObject.countdownFrameIndex, cameraX, lemmingObject.state);
                 }
                 const frame = spriteFrames[spriteIndex];
                 ctx.drawImage(
@@ -1336,10 +1335,7 @@ function drawDetectedObjects(ctx, detectedObjects) {
     });
 }
 
-function getSpriteRowForLemming(state, facing, dx, countDownActive) {
-    if (countDownActive && dx === 0) { //blocking with countdown PROBABLY WRONG
-        return 10;
-    }
+function getSpriteRowForLemming(state, facing) {
     if (state === 'walking') {
         return facing === 'right' ? 0 : 1;
     }
@@ -1396,7 +1392,6 @@ export function handleLemmingClick(lemming) {
   }
 
   if (currentTool === 'exploderTool') {
-    lemming.state = actionStatesMap[currentTool];
     lemming.countdownActive = true;
     console.log(`Set state '${lemming.state}' for lemming ${lemming.name}`);
     setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
