@@ -17,6 +17,10 @@ export const BASE_FRAME_DURATION = 1000 / BASE_FPS;
 let isFastForward = false;
 let frameDuration = BASE_FRAME_DURATION;
 
+export const EXPLOSION_PARTICLE_COUNT = 75;
+export const MAX_DISTANCE_EXPLOSION_PARTICLE = 800;
+export const EXPLOSION_PARTICLE_GRAVITY = 0.2;
+export const EXPLOSION_RADIUS = 35;
 export const FAST_FORWARD_AMOUNT = 4;
 export const DIE_FALLING_THRESHOLD = 150;
 export const ACTIVATE_FLOAT_THRESHOLD = 100;

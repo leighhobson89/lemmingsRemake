@@ -2,6 +2,10 @@ import {
     localize
 } from './localization.js';
 import {
+    EXPLOSION_PARTICLE_COUNT,
+    EXPLOSION_PARTICLE_GRAVITY,
+    MAX_DISTANCE_EXPLOSION_PARTICLE,
+    EXPLOSION_RADIUS,
     FAST_FORWARD_AMOUNT,
     getIsFastForward,
     getCountdownAreaFrames,
@@ -105,9 +109,9 @@ export async function startGame() {
     await createPaintingCanvas();
     const detectedObjects = await loadCollisionCanvas('level1');
 
-    console.log('Detected air enemy objects:', detectedObjects.enemiesAir);
-    console.log('Detected ground enemy objects:', detectedObjects.enemiesGround);
-    console.log('Detected lemming spawn points:', detectedObjects.lemmingSpawns);
+    // console.log('Detected air enemy objects:', detectedObjects.enemiesAir);
+    // console.log('Detected ground enemy objects:', detectedObjects.enemiesGround);
+    // console.log('Detected lemming spawn points:', detectedObjects.lemmingSpawns);
 
     await createCollisionCanvas();
     clearSpawnMarkersFromCollisionCanvas(detectedObjects.lemmingSpawns);
@@ -254,7 +258,7 @@ export function gameLoop(time = 0) {
         drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red', null);
         const allInactive = getNumberOfLemmingsForCurrentLevel() === getLemmingsReleased() && getLemmingsObjects().every(l => !l.active);
         if (allInactive) {
-            console.log('All lemmings are now inactive - can end level');
+            //console.log('All lemmings are now inactive - can end level');
         }
 
         updateToolButtons();
@@ -306,7 +310,7 @@ function updateBuildingAnimation(lemming, deltaTime) {
             lemming.frameIndex = 0;
 
             if (lemming.buildingSlabs === 10 || lemming.buildingSlabs === 11 || lemming.buildingSlabs === 12) {
-                console.log('play running out sound');
+                //console.log('play running out sound');
             }
 
             if (lemming.buildingSlabs === 12) {
@@ -349,6 +353,10 @@ function updateBoomingAnimation(lemming, deltaTime) {
     if (lemming.frameTime >= ANIMATION_SPEED) {
         lemming.frameTime = 0;
         lemming.frameIndex++;
+
+        if (lemming.frameIndex === 1) {
+            explodeTerrain(lemming);
+        }
 
         if (lemming.frameIndex >= getBoomingAreaFrames().length) {
             lemming.frameIndex = 0;
@@ -398,7 +406,7 @@ function updateExplodingAnimation(lemming, deltaTime) {
         lemming.frameIndex = 0;
     }
 
-    const ANIMATION_SPEED = 100;
+    const ANIMATION_SPEED = 60;
     lemming.frameTime += deltaTime;
 
     if (lemming.frameTime >= ANIMATION_SPEED) {
@@ -894,7 +902,6 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
                 height: scaledMaxY - scaledMinY
             };
             if (rectsOverlap(lemmingRect, enemyRect)) {
-                console.log(`Air enemy triggered by lemming: ${lemming.name}`);
                 lemming.active = false;
             }
         }
@@ -909,7 +916,6 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
                 height: scaledMaxY - scaledMinY
             };
             if (rectsOverlap(lemmingRect, enemyRect)) {
-                console.log(`Ground enemy triggered by lemming: ${lemming.name}`);
                 lemming.active = false;
             }
         }
@@ -925,7 +931,7 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
             };
             if (rectsOverlap(lemmingRect, exitRect)) {
                 setLemmingsRescued();
-                console.log(`Lemming ${lemming.name} reached the exit, now rescued ${getLemmingsRescued()} out of a possible ${getNumberOfLemmingsForCurrentLevel()}`);
+                //console.log(`Lemming ${lemming.name} reached the exit, now rescued ${getLemmingsRescued()} out of a possible ${getNumberOfLemmingsForCurrentLevel()}`);
                 lemming.active = false;
             }
         }
@@ -1005,7 +1011,6 @@ export function loadCollisionCanvas(levelName) {
         setCollisionImage(new Image());
         changeCollisionImageProperty(`./assets/levels/collision${capitalizeString(levelName)}.png`, 'src');
         getCollisionImage().onload = () => {
-            console.log(`Collision image for ${levelName} loaded. Dimensions: ${getCollisionImage().width}x${getCollisionImage().height}`);
             const detectedObjects = floodFillCollisionObjectsByColor(getCollisionImage());
 
             resolve(detectedObjects);
@@ -1486,19 +1491,16 @@ export function handleLemmingClick(lemming) {
   const toolsRemaining = getLevelToolsRemaining();
 
   if (!toolsRemaining[currentTool] || toolsRemaining[currentTool] <= 0) {
-    console.log(`No ${currentTool} tools left to use.`);
     return;
   }
 
   if (currentTool === 'exploderTool') {
     lemming.countdownActive = true;
-    console.log(`Set state '${lemming.state}' for lemming ${lemming.name}`);
     setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
     return;
   }
 
   if (lemming.state === 'blocking') {
-    console.log(`Lemming ${lemming.name} is blocking and ignores ${currentTool}`);
     return;
   }
 
@@ -1508,7 +1510,6 @@ export function handleLemmingClick(lemming) {
 
   if (currentTool === 'climberTool' || currentTool === 'floaterTool') {
     if (isAthlete) {
-      console.log(`Lemming ${lemming.name} is already an athlete and cannot be assigned ${currentTool}`);
       return;
     }
 
@@ -1516,17 +1517,14 @@ export function handleLemmingClick(lemming) {
       (currentTool === 'climberTool' && isClimber) ||
       (currentTool === 'floaterTool' && isFloater)
     ) {
-      console.log(`Lemming ${lemming.name} already has ${currentTool}`);
       return;
     }
 
     if ((currentTool === 'climberTool' && isFloater) ||
         (currentTool === 'floaterTool' && isClimber)) {
       lemming.tool = 'athlete';
-      console.log(`Lemming ${lemming.name} is now an athlete`);
     } else {
       lemming.tool = currentTool;
-      console.log(`Assigned tool ${currentTool} to lemming ${lemming.name}`);
     }
 
     setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
@@ -1537,7 +1535,6 @@ export function handleLemmingClick(lemming) {
     const newState = actionStatesMap[currentTool];
 
     if (lemming.state === newState) {
-      console.log(`Lemming ${lemming.name} is already ${newState}`);
       return;
     }
 
@@ -1545,12 +1542,9 @@ export function handleLemmingClick(lemming) {
     if (newState === 'blocking') {
       lemming.collisionBox = true;
     }
-    console.log(`Changed state to '${newState}' for lemming ${lemming.name}`);
     setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
     return;
   }
-
-  console.log(`Tool ${currentTool} does not map to an action or tool.`);
 }
 
 function buildSlab(lemming) {
@@ -1558,6 +1552,7 @@ function buildSlab(lemming) {
     if (!collisionCanvas) return;
 
     const ctx = collisionCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = 'white';
 
     const slabWidth = 12;
@@ -1576,6 +1571,76 @@ function buildSlab(lemming) {
 
     ctx.fillRect(slabX, slabY, slabWidth, slabHeight);
     updateCollisionPixels();
+}
+
+function explodeTerrain(lemming) {
+    const collisionCanvas = getCollisionCanvas();
+    if (!collisionCanvas) return;
+
+    const ctx = collisionCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+
+    const centerX = lemming.x + lemming.width / 2;
+    const centerY = lemming.y + lemming.height / 2;
+
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, EXPLOSION_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    explosionDebrisAnimation(centerX, centerY);
+    updateCollisionPixels();
+}
+
+function explosionDebrisAnimation(originX, originY) {
+    originY*= 1.25;
+    const container = document.body;
+
+    for (let i = 0; i < EXPLOSION_PARTICLE_COUNT; i++) {
+        const particle = document.createElement('div');
+        particle.classList.add('explosion-particle');
+
+        const colors = ['#ff0000', '#ff6600', '#ffffcc', '#ffffff'];
+        particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const startX = originX;
+        const startY = originY;
+        particle.style.left = `${startX}px`;
+        particle.style.top = `${startY}px`;
+
+        const angle = Math.random() * 2 * Math.PI;
+        const speed = Math.random() * 10 + 5;
+        let vx = Math.cos(angle) * speed;
+        let vy = Math.sin(angle) * speed;
+
+        let x = startX;
+        let y = startY;
+        let distanceTravelled = 0;
+
+        container.appendChild(particle);
+
+        function animate() {
+            vx *= 0.98;
+            vy += EXPLOSION_PARTICLE_GRAVITY;
+
+            x += vx;
+            y += vy;
+            distanceTravelled += Math.sqrt(vx * vx + vy * vy);
+
+            particle.style.transform = `translate(${x - startX}px, ${y - startY}px)`;
+
+            if (distanceTravelled < MAX_DISTANCE_EXPLOSION_PARTICLE) {
+                requestAnimationFrame(animate);
+            } else {
+                particle.remove();
+            }
+        }
+
+        const opacity = 1 - (distanceTravelled / MAX_DISTANCE_EXPLOSION_PARTICLE);
+        particle.style.opacity = opacity;
+        requestAnimationFrame(animate);
+    }
 }
 
 export function setGameState(newState) {
@@ -1600,26 +1665,21 @@ export function setGameState(newState) {
             });
 
             const currentLanguage = getLanguage();
-            console.log("Language is " + getLanguage());
+            //console.log("Language is " + getLanguage());
             switch (currentLanguage) {
                 case 'en':
-                    console.log("Setting Active state on English");
                     getElements().btnEnglish.classList.add('active');
                     break;
                 case 'es':
-                    console.log("Setting Active state on Spanish");
                     getElements().btnSpanish.classList.add('active');
                     break;
                 case 'de':
-                    console.log("Setting Active state on German");
                     getElements().btnGerman.classList.add('active');
                     break;
                 case 'it':
-                    console.log("Setting Active state on Italian");
                     getElements().btnItalian.classList.add('active');
                     break;
                 case 'fr':
-                    console.log("Setting Active state on French");
                     getElements().btnFrench.classList.add('active');
                     break;
             }

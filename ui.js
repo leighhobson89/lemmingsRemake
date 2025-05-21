@@ -93,7 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!btn) return;
 
         btn.addEventListener('click', () => {
-            console.log('Setting current tool to:', toolId);
             setCurrentTool(toolId);
 
             toolButtons.forEach(id => {
@@ -529,7 +528,7 @@ export function increaseReleaseRate() {
     if (currentRate > 10) {
         setReleaseRate(currentRate - 10);
     }
-    console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
+    // console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
 }
 
 export function decreaseReleaseRate() {
@@ -537,7 +536,7 @@ export function decreaseReleaseRate() {
     if (currentRate < 990) {
         setReleaseRate(currentRate + 10);
     }
-    console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
+    // console.log('Release rate:', String(100 - getReleaseRate() / 10).padStart(2, '0'));
 }
 
 export function toggleFastForward() {

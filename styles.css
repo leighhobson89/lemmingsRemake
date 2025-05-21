@@ -224,3 +224,13 @@ canvas {
   display: none;
 }
 
+.explosion-particle {
+    opacity: 0.8;
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: transform;
+}
+
