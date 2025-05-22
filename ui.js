@@ -171,6 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const debugBtn = document.getElementById('debugMode');
 
     debugBtn.addEventListener('click', () => {
+        updatePaintButtonState();
         let debugMode = getDebugMode();
         debugMode = !debugMode;
         setDebugMode(debugMode);
@@ -181,6 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             debugBtn.classList.remove('btn-success');
             debugBtn.classList.add('btn-warning');
+            setPaintMode(false);
         }
     });
 
@@ -650,6 +652,26 @@ export function updateToolButtons() {
     button.dataset.baseLabel = baseLabel;
     button.innerHTML = `${baseLabel}<br>(${count})`;
   });
+}
+
+export function updatePaintButtonState() {
+    const paintBtn = getElements().paintButton;
+    if (!getDebugMode()) {
+        paintBtn.classList.add('btn-secondary');
+        paintBtn.classList.remove('btn-success');
+        paintBtn.classList.remove('btn-warning');
+        paintBtn.disabled = true;
+    } else {
+        if (getPaintMode()) {
+            paintBtn.classList.remove('btn-secondary');
+            paintBtn.classList.remove('btn-warning');
+            paintBtn.classList.add('btn-success');
+        } else {
+            paintBtn.classList.remove('btn-success');
+            paintBtn.classList.add('btn-warning');
+            paintBtn.disabled = false;
+        }
+    }
 }
 
 function triggerNuke() {

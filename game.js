@@ -79,7 +79,8 @@ import {
 	createPaintingCanvas,
 	createCollisionCanvas,
 	updateCamera,
-	updateToolButtons
+	updateToolButtons,
+	updatePaintButtonState
 } from './ui.js';
 import {
 	capitalizeString
@@ -94,6 +95,7 @@ const detectedObjects = {
 
 //--------------------------------------------------------------------------------------------------------
 let activeExplosionParticles = 0;
+let solidGroundMap = null;
 
 export async function startGame() {
 	const canvas = getElements().canvas;
@@ -134,7 +136,6 @@ export async function startGame() {
 
 	initializeLemmings(levelData.lemmings, lemmingStartPosition, levelData.facing);
 	nameLemmings(getLemmingsObjects());
-
 	gameLoop();
 }
 
@@ -186,6 +187,41 @@ export function gameLoop(time = 0) {
 		}
 
 		if (getCollisionCanvas()) {
+			const cameraX = getCameraX();
+			ctx.drawImage(
+				getCollisionCanvas(),
+				cameraX, 0,
+				getElements().canvas.width,
+				getCollisionCanvas().height,
+				0, 0,
+				getElements().canvas.width,
+				getCollisionCanvas().height
+			);
+		}
+
+		if (getDebugMode() && visualCanvas) {
+			// In debug mode, draw both: collision first, then visual overlay
+			const cameraX = getCameraX();
+			ctx.drawImage(
+				getCollisionCanvas(),
+				cameraX, 0,
+				getElements().canvas.width,
+				getCollisionCanvas().height,
+				0, 0,
+				getElements().canvas.width,
+				getCollisionCanvas().height
+			);
+			ctx.drawImage(
+				visualCanvas,
+				cameraX, 0,
+				getElements().canvas.width,
+				visualCanvas.height,
+				0, 0,
+				getElements().canvas.width,
+				visualCanvas.height
+			);
+		} else if (getCollisionCanvas()) {
+			// In play mode, draw only the collision canvas
 			const cameraX = getCameraX();
 			ctx.drawImage(
 				getCollisionCanvas(),
@@ -274,6 +310,7 @@ export function gameLoop(time = 0) {
 		}
 
 		updateToolButtons();
+		updatePaintButtonState();
 
 		requestAnimationFrame(gameLoop);
 	}
@@ -766,10 +803,8 @@ function applyGravity(lemming) {
 }
 
 function checkAllCollisions() {
-	getLemmingsObjects().forEach(lemming => {
-		if (!lemming.active) return;
-		checkLemmingVersusNonSurfaceCollisions(getLemmingsObjects());
-	});
+    const lemmings = getLemmingsObjects().filter(lemming => lemming.active);
+    checkLemmingVersusNonSurfaceCollisions(lemmings);
 }
 
 function drawFloatingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
@@ -1040,22 +1075,39 @@ function buildLemmingGrid(lemmings) {
 	return grid;
 }
 
-function isOnGround(lemming) {
-    const samplePoints = [
-        Math.floor(lemming.x),
-        Math.floor(lemming.x + lemming.width / 2),
-        Math.floor(lemming.x + lemming.width - 1)
-    ];
-    const y = Math.floor(lemming.y + lemming.height + 1);
+function updateSolidGroundMap() {
+    const width = getCollisionCanvas().width;
+    const height = getCollisionCanvas().height;
+    const data = getCollisionPixels().data;
+    solidGroundMap = new Uint8Array(width * height);
 
-    for (const x of samplePoints) {
-        const pixel = getPixelColor(x, y);
-
-        if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) {
-            return true;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            // If any channel is above threshold, mark as solid
+            solidGroundMap[y * width + x] =
+                (data[idx] > PIXEL_THRESHOLD ||
+                 data[idx + 1] > PIXEL_THRESHOLD ||
+                 data[idx + 2] > PIXEL_THRESHOLD) ? 1 : 0;
         }
     }
-    return false;
+}
+
+function isOnGround(lemming) {
+    const width = getCollisionCanvas().width;
+    const y = Math.floor(lemming.y + lemming.height + 1);
+    const centerX = Math.floor(lemming.x + lemming.width / 2);
+
+    let solidCount = 0;
+    let total = 0;
+    for (let offset = -12; offset <= 12; offset++) {
+        const x = centerX + offset;
+        if (x < 0 || x >= width || y < 0 || y >= getCollisionCanvas().height) continue;
+        total++;
+        if (solidGroundMap[y * width + x]) solidCount++;
+    }
+
+    return total > 0 && (solidCount / total) >= 0.2;
 }
 
 export function getPixelColor(x, y) {
@@ -1449,9 +1501,10 @@ function adjustLemmingHeight(lemming) {
 }
 
 export function updateCollisionPixels() {
-	if (getCollisionCtx() && getCollisionCanvas()) {
-		setCollisionPixels(getCollisionCtx().getImageData(0, 0, getCollisionCanvas().width, getCollisionCanvas().height));
-	}
+    if (getCollisionCtx() && getCollisionCanvas()) {
+        setCollisionPixels(getCollisionCtx().getImageData(0, 0, getCollisionCanvas().width, getCollisionCanvas().height));
+        updateSolidGroundMap();
+    }
 }
 
 function drawDetectedObjects(ctx, detectedObjects) {

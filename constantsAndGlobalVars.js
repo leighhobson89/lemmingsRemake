@@ -286,6 +286,7 @@ export function setElements() {
         closeButtonSavePopup: document.getElementById('closeButtonSavePopup'),
         overlay: document.getElementById('overlay'),
         customCursor: document.getElementById('customCursor'),
+        paintButton: document.getElementById('paintMode'),
     };
 }
 
