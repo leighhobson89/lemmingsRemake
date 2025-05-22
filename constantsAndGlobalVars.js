@@ -25,7 +25,7 @@ export const EXPLOSION_PARTICLE_GRAVITY = 0.2;
 export const EXPLOSION_RADIUS = 35;
 export const FAST_FORWARD_AMOUNT = 4;
 export const DIE_FALLING_THRESHOLD = 150;
-export const ACTIVATE_FLOAT_THRESHOLD = 100;
+export const ACTIVATE_FLOAT_THRESHOLD = 80;
 export const HOLD_INTERVAL = 60;
 export const HOLD_DELAY = 800;
 export const CLICK_THRESHOLD = 800;
@@ -42,7 +42,7 @@ export const MAX_ATTEMPTS_TO_DRAW_ENEMIES = 1000;
 export const LEMMING_WIDTH = 20;
 export const LEMMING_HEIGHT = 25;
 export const TURN_COOLDOWN = 10;
-export const GRAVITY_SPEED = 4; //0.05
+export const GRAVITY_SPEED = 5; //0.05
 export const COLLISION_CHECK_INTERVAL = 20;
 export const NUKE_CLICK_THRESHOLD = 1000;
 export const SPAWN_COLOR = {
@@ -161,7 +161,8 @@ export const lemmingLevelData = {
             "basherTool": 1,
             "minerTool": 1,
             "diggerTool": 1
-        }
+        },
+        facing: 'right'
     }
 }
 
