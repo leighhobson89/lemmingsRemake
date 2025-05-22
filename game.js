@@ -2,6 +2,7 @@ import {
 	localize
 } from './localization.js';
 import {
+	BUILDER_SLAB_COLOR,
 	MAX_EXPLOSION_PARTICLES,
 	COLLISION_GRID_CELL_SIZE,
 	EXPLOSION_PARTICLE_COUNT,
@@ -1082,11 +1083,18 @@ function updateSolidGroundMap() {
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
-            // If any channel is above threshold, mark as solid
-            solidGroundMap[y * width + x] =
-                (data[idx] > PIXEL_THRESHOLD ||
-                 data[idx + 1] > PIXEL_THRESHOLD ||
-                 data[idx + 2] > PIXEL_THRESHOLD) ? 1 : 0;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+
+            if (r === 253 && g === 253 && b === 253) {
+                solidGroundMap[y * width + x] = 0;
+            } else {
+                solidGroundMap[y * width + x] =
+                    (r > PIXEL_THRESHOLD ||
+                     g > PIXEL_THRESHOLD ||
+                     b > PIXEL_THRESHOLD) ? 1 : 0;
+            }
         }
     }
 }
@@ -1410,92 +1418,110 @@ function floodFillCollisionObjectsByColor(collisionImage) {
 	return detectedObjects;
 }
 
+function isSolidPixel(pixel) {
+    // Ignore builder slab color and pixels under threshold
+    if (
+        (typeof BUILDER_SLAB_COLOR !== 'undefined' &&
+         pixel[0] === BUILDER_SLAB_COLOR.r &&
+         pixel[1] === BUILDER_SLAB_COLOR.g &&
+         pixel[2] === BUILDER_SLAB_COLOR.b)
+    ) {
+        return false;
+    }
+    return (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD);
+}
+
 function adjustLemmingHeight(lemming) {
-	const height = lemming.height;
-	const checkHeight = Math.max(1, Math.floor(height * 0.1));
-	const bottomY = Math.floor(lemming.y + height);
+    const height = lemming.height;
+    const checkHeight = Math.max(1, Math.floor(height * 0.1));
+    const bottomY = Math.floor(lemming.y + height);
 
-	let footX;
-	if (lemming.facing === 'right') {
-		footX = Math.floor(lemming.x + lemming.width);
-	} else {
-		footX = Math.floor(lemming.x);
-	}
+    let footX;
+    if (lemming.facing === 'right') {
+        footX = Math.floor(lemming.x + lemming.width);
+    } else {
+        footX = Math.floor(lemming.x);
+    }
 
-	if (typeof lemming.turnCooldown === 'undefined') {
-		lemming.turnCooldown = 0;
-	}
+    if (typeof lemming.turnCooldown === 'undefined') {
+        lemming.turnCooldown = 0;
+    }
 
-	const pixelAbove = getPixelColor(footX, Math.floor(lemming.y) - 1);
-	if (
-		lemming.turnCooldown === 0 &&
-		(pixelAbove[0] > PIXEL_THRESHOLD || pixelAbove[1] > PIXEL_THRESHOLD || pixelAbove[2] > PIXEL_THRESHOLD)
-	) {
-		if (lemming.tool === 'climberTool' || lemming.tool === 'athlete') {
-			lemming.lastState = lemming.state;
-			lemming.state = 'climbing';
-			return;
-		}
+    const pixelAbove = getPixelColor(footX, Math.floor(lemming.y) - 1);
+    if (
+        lemming.turnCooldown === 0 &&
+        isSolidPixel(pixelAbove)
+    ) {
+        if (lemming.tool === 'climberTool' || lemming.tool === 'athlete') {
+            lemming.lastState = lemming.state;
+            lemming.state = 'climbing';
+            return;
+        }
 
-		lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
-		lemming.dx = -lemming.dx;
-		lemming.turnCooldown = TURN_COOLDOWN;
-		return;
-	}
+        lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
+        lemming.dx = -lemming.dx;
+        lemming.turnCooldown = TURN_COOLDOWN;
+        return;
+    }
 
-	if (lemming.turnCooldown > 0) {
-		lemming.turnCooldown--;
-	}
+    if (lemming.turnCooldown > 0) {
+        lemming.turnCooldown--;
+    }
 
-	let solidPixels = 0;
-	let solidAboveCount = 0;
+    let solidPixels = 0;
+    let solidAboveCount = 0;
 
-	for (let i = 0; i < checkHeight; i++) {
-		const sampleY = bottomY - 1 - i;
-		const pixel = getPixelColor(footX, sampleY);
-		if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) solidPixels++;
-	}
+    for (let i = 0; i < checkHeight; i++) {
+        const sampleY = bottomY - 1 - i;
+        const pixel = getPixelColor(footX, sampleY);
+        if (isSolidPixel(pixel)) solidPixels++;
+    }
 
-	for (let i = checkHeight; i < height; i++) {
-		const sampleY = bottomY - 1 - i;
-		const pixel = getPixelColor(footX, sampleY);
-		if (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD) solidAboveCount++;
-	}
+    for (let i = checkHeight; i < height; i++) {
+        const sampleY = bottomY - 1 - i;
+        const pixel = getPixelColor(footX, sampleY);
+        if (isSolidPixel(pixel)) solidAboveCount++;
+    }
 
-	if (solidPixels > 0) {
-		if (solidAboveCount <= 8) {
-			lemming.y -= solidAboveCount;
-			lemming.lastState = lemming.state;
-			if (!lemming.countdownActive && !lemming.nukeActive) {
-				lemming.state = 'walking';
-			}
-		} else {
-			// Wall too tall — turn around
-			if (lemming.turnCooldown === 0) {
-				lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
-				lemming.dx = -Math.abs(lemming.dx);
-				lemming.turnCooldown = TURN_COOLDOWN;
-			}
-		}
-	} else {
-		let airPixelCount = 0;
-		for (let offset = 1; offset <= 10; offset++) {
-			const sampleY = bottomY + offset;
-			const pixel = getPixelColor(footX, sampleY);
-			if (pixel[0] <= 10 && pixel[1] <= 10 && pixel[2] <= 10) {
-				airPixelCount++;
-			} else {
-				break;
-			}
-		}
+    if (solidPixels > 0) {
+        if (solidAboveCount <= 8) {
+            lemming.y -= solidAboveCount;
+            lemming.lastState = lemming.state;
+            if (!lemming.countdownActive && !lemming.nukeActive) {
+                lemming.state = 'walking';
+            }
+        } else {
+            // Wall too tall — turn around
+            if (lemming.turnCooldown === 0) {
+                lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
+                lemming.dx = -Math.abs(lemming.dx);
+                lemming.turnCooldown = TURN_COOLDOWN;
+            }
+        }
+    } else {
+        let airPixelCount = 0;
+        for (let offset = 1; offset <= 10; offset++) {
+            const sampleY = bottomY + offset;
+            const pixel = getPixelColor(footX, sampleY);
+            if (
+                (pixel[0] <= 10 && pixel[1] <= 10 && pixel[2] <= 10) ||
+                (typeof BUILDER_SLAB_COLOR !== 'undefined' &&
+                 pixel[0] === BUILDER_SLAB_COLOR.r &&
+                 pixel[1] === BUILDER_SLAB_COLOR.g &&
+                 pixel[2] === BUILDER_SLAB_COLOR.b)
+            ) {
+                airPixelCount++;
+            } else {
+                break;
+            }
+        }
 
-		if (airPixelCount >= 1 && airPixelCount < 10) {
-			lemming.y += 1;
-			lemming.lastState = lemming.state;
-			lemming.state = 'falling';
-			lemming.fallenDistance = 0;
-		}
-	}
+        if (airPixelCount >= 1 && airPixelCount < 10) {
+				lemming.lastState = lemming.state;
+                lemming.state = 'falling';
+                lemming.fallenDistance = 0;
+        }
+    }
 }
 
 export function updateCollisionPixels() {
@@ -1673,28 +1699,41 @@ export function handleLemmingClick(lemming) {
 }
 
 function buildSlab(lemming) {
-	const collisionCanvas = getCollisionCanvas();
-	if (!collisionCanvas) return;
+    const collisionCanvas = getCollisionCanvas();
+    if (!collisionCanvas) return;
 
-	const ctx = collisionCanvas.getContext('2d');
-	ctx.fillStyle = 'white';
+    const ctx = collisionCanvas.getContext('2d');
+    const slabWidth = 8;
+    const slabHeight = 3;
 
-	const slabWidth = 15;
-	const slabHeight = 3;
+    const slabY = lemming.y + lemming.height - 2;
+    const lemmingCenterX = lemming.x + lemming.width / 2;
+    let firstSlabX, secondSlabX;
 
-	const slabY = lemming.y + lemming.height - 2;
+    if (lemming.facing === 'right') {
+        firstSlabX = Math.round(lemmingCenterX + 1);
+        secondSlabX = firstSlabX + slabWidth;
+    } else {
+        firstSlabX = Math.round(lemmingCenterX - 1 - slabWidth);
+        secondSlabX = firstSlabX - slabWidth;
+    }
 
-	const lemmingCenterX = lemming.x + lemming.width / 2;
-	let slabX;
+    // If buildingSlabs is less than 4, both slabs are white
+    if ((lemming.buildingSlabs || 0) < 4) {
+        ctx.fillStyle = 'rgb(255,255,255)';
+        ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
+        ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
+    } else {
+        // Draw first slab (white)
+        ctx.fillStyle = 'rgb(255,255,255)';
+        ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
 
-	if (lemming.facing === 'right') {
-		slabX = Math.round(lemmingCenterX + 1);
-	} else {
-		slabX = Math.round(lemmingCenterX - 1 - slabWidth);
-	}
+        // Draw second slab (BUILDER_SLAB_COLOR)
+        ctx.fillStyle = BUILDER_SLAB_COLOR;
+        ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
+    }
 
-	ctx.fillRect(slabX, slabY, slabWidth, slabHeight);
-	updateCollisionPixels();
+    updateCollisionPixels();
 }
 
 function explodeTerrain(lemming) {
