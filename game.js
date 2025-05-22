@@ -2,6 +2,8 @@ import {
     localize
 } from './localization.js';
 import {
+    MAX_EXPLOSION_PARTICLES,
+    COLLISION_GRID_CELL_SIZE,
     EXPLOSION_PARTICLE_COUNT,
     EXPLOSION_PARTICLE_GRAVITY,
     MAX_DISTANCE_EXPLOSION_PARTICLE,
@@ -90,6 +92,8 @@ const detectedObjects = {
 };
 
 //--------------------------------------------------------------------------------------------------------
+let activeExplosionParticles = 0;
+
 export async function startGame() {
     const canvas = getElements().canvas;
     const ctx = canvas.getContext('2d');
@@ -196,12 +200,17 @@ export function gameLoop(time = 0) {
         }
 
         if (gameState === getGameVisibleActive()) {
+          if (getLemmingsReleased() < getNumberOfLemmingsForCurrentLevel()) {
             releaseLemmings(deltaTime);
+          }
 
             for (const lemming of getLemmingsObjects()) {
                 if (lemming.active) {
                     moveLemmingInstance(lemming);
                     applyGravity(lemming);
+                  if (lemming.nukeActive) {
+                    lemming.countdownActive = true;
+                  }
                 }
             }
 
@@ -316,6 +325,7 @@ function updateBuildingAnimation(lemming, deltaTime) {
             if (lemming.buildingSlabs === 12) {
                 lemming.lastState = lemming.state;
                 lemming.state = 'runOutOfSlabs';
+                lemming.buildingSlabs = 0;
             }
         }
     }
@@ -882,6 +892,7 @@ function rectsOverlap(r1, r2) {
 }
 
 function checkLemmingVersusNonSurfaceCollisions(lemmings) {
+    const lemmingGrid = buildLemmingGrid(lemmings);
     for (const lemming of lemmings) {
         if (!lemming.active) continue;
 
@@ -936,44 +947,67 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
             }
         }
 
-        if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { //TO CHECK FOR MINING
-            for (const other of lemmings) {
-                if (
-                    other === lemming ||
-                    !other.active ||
-                    other.collisionBox !== true
-                ) continue;
+        if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { // TO CHECK FOR MINING
+            // Use the grid to only check nearby lemmings
+            const cellX = Math.floor(lemming.x / COLLISION_GRID_CELL_SIZE);
+            const cellY = Math.floor(lemming.y / COLLISION_GRID_CELL_SIZE);
 
-                const collisionBoxLeft = {
-                    x: other.x,
-                    y: other.y,
-                    width: 4,
-                    height: other.height
-                };
+            outer: for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const key = `${cellX + dx},${cellY + dy}`;
+                    const others = lemmingGrid.get(key);
+                    if (!others) continue;
 
-                const collisionBoxRight = {
-                    x: other.x + other.width - 2,
-                    y: other.y,
-                    width: 4,
-                    height: other.height
-                };
+                    for (const other of others) {
+                        if (
+                            other === lemming ||
+                            !other.active ||
+                            other.collisionBox !== true
+                        ) continue;
 
-                if (
-                    rectsOverlap(lemmingRect, collisionBoxLeft) ||
-                    rectsOverlap(lemmingRect, collisionBoxRight)
-                ) {
-                    lemming.facing = (lemming.facing === 'left') ? 'right' : 'left';
-                    lemming.dx = -lemming.dx;
+                        const collisionBoxLeft = {
+                            x: other.x,
+                            y: other.y,
+                            width: 4,
+                            height: other.height
+                        };
 
-                    lemming.x += (lemming.facing === 'left') ? -2 : 2;
+                        const collisionBoxRight = {
+                            x: other.x + other.width - 2,
+                            y: other.y,
+                            width: 4,
+                            height: other.height
+                        };
 
-                    break;
+                        if (
+                            rectsOverlap(lemmingRect, collisionBoxLeft) ||
+                            rectsOverlap(lemmingRect, collisionBoxRight)
+                        ) {
+                            lemming.facing = (lemming.facing === 'left') ? 'right' : 'left';
+                            lemming.dx = -lemming.dx;
+                            lemming.x += (lemming.facing === 'left') ? -2 : 2;
+                            break outer;
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+function buildLemmingGrid(lemmings) {
+    const grid = new Map();
+
+    for (const lemming of lemmings) {
+        if (!lemming.active) continue;
+        const cellX = Math.floor(lemming.x / COLLISION_GRID_CELL_SIZE);
+        const cellY = Math.floor(lemming.y / COLLISION_GRID_CELL_SIZE);
+        const key = `${cellX},${cellY}`;
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(lemming);
+    }
+    return grid;
+}
 
 function isOnGround(lemming) {
     const samplePoints = [
@@ -1349,7 +1383,7 @@ function adjustLemmingHeight(lemming) {
         if (solidAboveCount <= 8) {
             lemming.y -= solidAboveCount;
             lemming.lastState = lemming.state;
-            if (!lemming.countdownActive) {
+            if (!lemming.countdownActive && !lemming.nukeActive) {
                 lemming.state = 'walking';
             }
         } else {
@@ -1597,7 +1631,11 @@ function explosionDebrisAnimation(originX, originY) {
     originY*= 1.25;
     const container = document.body;
 
+    let particlesToCreate = Math.min(EXPLOSION_PARTICLE_COUNT, MAX_EXPLOSION_PARTICLES - activeExplosionParticles);
+    if (particlesToCreate <= 0) return;
+
     for (let i = 0; i < EXPLOSION_PARTICLE_COUNT; i++) {
+        activeExplosionParticles++;
         const particle = document.createElement('div');
         particle.classList.add('explosion-particle');
 
@@ -1634,6 +1672,7 @@ function explosionDebrisAnimation(originX, originY) {
                 requestAnimationFrame(animate);
             } else {
                 particle.remove();
+                activeExplosionParticles--;
             }
         }
 

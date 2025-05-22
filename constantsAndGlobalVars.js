@@ -17,6 +17,8 @@ export const BASE_FRAME_DURATION = 1000 / BASE_FPS;
 let isFastForward = false;
 let frameDuration = BASE_FRAME_DURATION;
 
+export const MAX_EXPLOSION_PARTICLES = 400;
+export const COLLISION_GRID_CELL_SIZE = 40;
 export const EXPLOSION_PARTICLE_COUNT = 75;
 export const MAX_DISTANCE_EXPLOSION_PARTICLE = 800;
 export const EXPLOSION_PARTICLE_GRAVITY = 0.2;

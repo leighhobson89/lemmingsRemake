@@ -664,6 +664,7 @@ function triggerNuke() {
 
             setTimeout(() => {
                 lemming.countdownActive = true;
+                lemming.nukeActive = true;
             }, totalDelay);
         }
     }
