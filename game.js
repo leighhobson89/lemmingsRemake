@@ -100,7 +100,6 @@ let solidGroundMap = null;
 export async function startGame() {
 	const canvas = getElements().canvas;
 	const ctx = canvas.getContext('2d');
-	ctx.imageSmoothingEnabled = false;
 	const container = getElements().canvasContainer;
 
 	await updateCanvasSize(container, canvas, ctx);
@@ -296,7 +295,6 @@ export function gameLoop(time = 0) {
 				const row = getSpriteRowForLemming(lemming.state, lemming.facing);
 				const col = lemming.frameIndex;
 				const spriteIndex = row * FRAMES_PER_ROW + col;
-				ctx.imageSmoothingEnabled = false;
 				drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
 			}
 		}
@@ -343,7 +341,7 @@ function updateBuildingAnimation(lemming, deltaTime) {
 		lemming.frameIndex = 0;
 	}
 
-	const ANIMATION_SPEED = 60;
+	const ANIMATION_SPEED = 30;
 	lemming.frameTime += deltaTime;
 
 	if (lemming.frameTime >= ANIMATION_SPEED) {
@@ -713,11 +711,11 @@ function moveLemmingInstance(lemming) {
 	} else if (lemming.state === 'building') {
 		if (lemming.frameIndex === 15) {
 			if (lemming.facing === 'right') {
-				lemming.x += 2;
+				lemming.x += 5;
 			} else if (lemming.facing === 'left') {
-				lemming.x -= 2;
+				lemming.x -= 5;
 			}
-			lemming.y -= 1;
+			lemming.y -= 2;
 		}
 	}
 
@@ -1607,64 +1605,71 @@ function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
 }
 
 export function handleLemmingClick(lemming) {
-	const currentTool = getCurrentTool();
-	const toolsRemaining = getLevelToolsRemaining();
+    const currentTool = getCurrentTool();
+    const toolsRemaining = getLevelToolsRemaining();
 
-	if (!toolsRemaining[currentTool] || toolsRemaining[currentTool] <= 0) {
-		return;
-	}
+    if (!toolsRemaining[currentTool] || toolsRemaining[currentTool] <= 0) {
+        return;
+    }
 
-	if (currentTool === 'exploderTool') {
-		lemming.countdownActive = true;
-		setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
-		return;
-	}
+    // Only allow exploderTool or floaterTool while falling
+    if (lemming.state === 'falling') {
+        if (currentTool !== 'exploderTool' && currentTool !== 'floaterTool') {
+            return;
+        }
+    }
 
-	if (lemming.state === 'blocking') {
-		return;
-	}
+    if (currentTool === 'exploderTool') {
+        lemming.countdownActive = true;
+        setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+        return;
+    }
 
-	const isClimber = lemming.tool === 'climberTool';
-	const isFloater = lemming.tool === 'floaterTool';
-	const isAthlete = lemming.tool === 'athlete';
+    if (lemming.state === 'blocking') {
+        return;
+    }
 
-	if (currentTool === 'climberTool' || currentTool === 'floaterTool') {
-		if (isAthlete) {
-			return;
-		}
+    const isClimber = lemming.tool === 'climberTool';
+    const isFloater = lemming.tool === 'floaterTool';
+    const isAthlete = lemming.tool === 'athlete';
 
-		if (
-			(currentTool === 'climberTool' && isClimber) ||
-			(currentTool === 'floaterTool' && isFloater)
-		) {
-			return;
-		}
+    if (currentTool === 'climberTool' || currentTool === 'floaterTool') {
+        if (isAthlete) {
+            return;
+        }
 
-		if ((currentTool === 'climberTool' && isFloater) ||
-			(currentTool === 'floaterTool' && isClimber)) {
-			lemming.tool = 'athlete';
-		} else {
-			lemming.tool = currentTool;
-		}
+        if (
+            (currentTool === 'climberTool' && isClimber) ||
+            (currentTool === 'floaterTool' && isFloater)
+        ) {
+            return;
+        }
 
-		setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
-		return;
-	}
+        if ((currentTool === 'climberTool' && isFloater) ||
+            (currentTool === 'floaterTool' && isClimber)) {
+            lemming.tool = 'athlete';
+        } else {
+            lemming.tool = currentTool;
+        }
 
-	if (currentTool in actionStatesMap) {
-		const newState = actionStatesMap[currentTool];
+        setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+        return;
+    }
 
-		if (lemming.state === newState) {
-			return;
-		}
+    if (currentTool in actionStatesMap) {
+        const newState = actionStatesMap[currentTool];
 
-		lemming.state = newState;
-		if (newState === 'blocking') {
-			lemming.collisionBox = true;
-		}
-		setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
-		return;
-	}
+        if (lemming.state === newState) {
+            return;
+        }
+
+        lemming.state = newState;
+        if (newState === 'blocking') {
+            lemming.collisionBox = true;
+        }
+        setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
+        return;
+    }
 }
 
 function buildSlab(lemming) {
@@ -1672,7 +1677,6 @@ function buildSlab(lemming) {
 	if (!collisionCanvas) return;
 
 	const ctx = collisionCanvas.getContext('2d');
-	ctx.imageSmoothingEnabled = false;
 	ctx.fillStyle = 'white';
 
 	const slabWidth = 15;
@@ -1699,7 +1703,6 @@ function explodeTerrain(lemming) {
 
 	const ctx = collisionCanvas.getContext('2d');
 	if (!ctx) return;
-	ctx.imageSmoothingEnabled = false;
 
 	const centerX = lemming.x + lemming.width / 2;
 	const centerY = lemming.y + lemming.height / 2;

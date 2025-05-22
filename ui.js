@@ -501,7 +501,6 @@ export async function createCollisionCanvas() {
     const ctx = collisionCanvas.getContext('2d', {
         willReadFrequently: true
     });
-    ctx.imageSmoothingEnabled = false;
 
     setCollisionCtx(ctx);
 
