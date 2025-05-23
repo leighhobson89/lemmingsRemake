@@ -1909,7 +1909,24 @@ function buildSlab(lemming) {
         ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
     }
 
-    updateCollisionPixels();
+	const extremeEdgeX = lemming.facing === 'right'
+    ? secondSlabX + slabWidth - 1
+    : secondSlabX - slabWidth + 1;
+
+	let allNotBlack = true;
+	for (let dy = 0; dy < 3; dy++) {
+		const pixel = getPixelColor(extremeEdgeX, slabY + dy);
+		if (pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0) {
+			allNotBlack = false;
+			break;
+		}
+	}
+
+	if (allNotBlack) {
+		lemming.state = 'walking';
+	}
+
+	updateCollisionPixels();
 }
 
 function explodeTerrain(lemming) {
