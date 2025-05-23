@@ -18,7 +18,6 @@ let isFastForward = false;
 let frameDuration = BASE_FRAME_DURATION;
 
 export const BUILDER_SLAB_COLOR = 'rgb(253,253,253)';
-
 export const MAX_EXPLOSION_PARTICLES = 400;
 export const COLLISION_GRID_CELL_SIZE = 40;
 export const EXPLOSION_PARTICLE_COUNT = 75;
@@ -93,7 +92,7 @@ export const countdownAreaFrames = [8, 9, 10, 11, 12];
 export const SPRITE_WIDTH = 8;
 export const SPRITE_HEIGHT = 10;
 export const SHEET_WIDTH = 160;
-export const SHEET_HEIGHT = 200;
+export const SHEET_HEIGHT = 400;
 export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_WIDTH;
 export const RELEASE_RATE_BALANCER = 5;
 
@@ -152,7 +151,7 @@ const levelToolsRemaining = {
 
 export const lemmingLevelData = {
     level1: {
-        lemmings: 200,
+        lemmings: 15,
         releaseRate: 500,
         startingTools: {
             "climberTool": 10,
@@ -160,7 +159,7 @@ export const lemmingLevelData = {
             "exploderTool": 10,
             "blockerTool": 6,
             "builderTool": 15,
-            "basherTool": 1,
+            "basherTool": 10,
             "minerTool": 1,
             "diggerTool": 1
         },
@@ -208,7 +207,8 @@ export const lemmingObject = {
     collisionBox: false,
     countdownActive: false,
     active: false,
-    name: null
+    name: null,
+    reachedEndOfBashingSquare: 0
 };
 
 export function getNewLemmingObject() {
@@ -228,7 +228,8 @@ export function getNewLemmingObject() {
         collisionBox: false,
         countdownActive: false,
         active: false,
-        name: null
+        name: null,
+        reachedEndOfBashingSquare: 0
     };
 }
 

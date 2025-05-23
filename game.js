@@ -258,7 +258,6 @@ export function gameLoop(time = 0) {
 
 		for (const lemming of getLemmingsObjects()) {
 			if (lemming.active) {
-				const frameCount = getFrameCountForState(lemming.state);
 				if (gameState === getGameVisibleActive()) {
 					if (lemming.state === 'floating') {
 						updateFloatingAnimation(lemming, deltaTime);
@@ -281,6 +280,9 @@ export function gameLoop(time = 0) {
 					} else if (lemming.state === 'building') {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateBuildingAnimation(lemming, deltaTime, frameCount);
+					} else if (lemming.state === 'bashing') {
+						const frameCount = getFrameCountForState(lemming.state);
+						updateBashingAnimation(lemming, deltaTime, frameCount);
 					} else if (lemming.state === 'runOutOfSlabs') {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateRunOutOfSlabsAnimation(lemming, deltaTime, frameCount);
@@ -293,9 +295,22 @@ export function gameLoop(time = 0) {
 						updateCountDownAnimation(lemming, deltaTime);
 					}
 				}
-				const row = getSpriteRowForLemming(lemming.state, lemming.facing);
-				const col = lemming.frameIndex;
-				const spriteIndex = row * FRAMES_PER_ROW + col;
+
+				const rows = getSpriteRowForLemming(lemming.state, lemming.facing, lemming.frameIndex);
+				let rowNumber;
+				let col;
+
+				if (Array.isArray(rows)) {
+					const framesPerRow = 16;
+					const rowIndex = Math.floor(lemming.frameIndex / framesPerRow);
+					rowNumber = rows[rowIndex];
+					col = lemming.frameIndex % framesPerRow;
+				} else {
+					rowNumber = rows;
+					col = lemming.frameIndex;
+				}
+
+				const spriteIndex = rowNumber * FRAMES_PER_ROW + col;
 				drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
 			}
 		}
@@ -332,6 +347,45 @@ function updateRunOutOfSlabsAnimation(lemming, deltaTime) {
 			lemming.lastState = lemming.state;
 			lemming.state = 'walking';
 			lemming.frameIndex = 0;
+		}
+	}
+}
+
+function updateBashingAnimation(lemming, deltaTime) {
+	if (lemming.frameTime === undefined) {
+		lemming.frameTime = 0;
+		lemming.frameIndex = 0;
+	}
+
+	const ANIMATION_SPEED = 40;
+	lemming.frameTime += deltaTime;
+
+	if (lemming.frameTime >= ANIMATION_SPEED) {
+		lemming.frameTime = 0;
+		lemming.frameIndex++;
+
+		const radius = lemming.height / 2 + 1;
+		const centerX = lemming.x + lemming.width / 2;
+		const centerY = lemming.y + lemming.height / 2;
+
+		if (
+			([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31].includes(lemming.frameIndex))
+		) {
+			const shift = lemming.facing === 'right' ? 1 : -1;
+			const canvas = getCollisionCanvas();
+			const ctx = canvas.getContext('2d');
+			ctx.imageSmoothingEnabled = false;
+			bashBlock(ctx, lemming, centerX + shift, centerY, radius);
+		}
+
+		if (lemming.frameIndex > 31) {
+			lemming.frameIndex = 0;
+		}
+		if (lemming.reachedEndOfBashingSquare > 4) {
+				lemming.lastState = lemming.state;
+				lemming.frameIndex = 0;
+				lemming.state = 'walking';
+				lemming.reachedEndOfBashingSquare = 0;
 		}
 	}
 }
@@ -597,6 +651,8 @@ function getFrameCountForState(state) {
 			return 16;
 		case 'runOutOfSlabs':
 			return 16;
+		case 'bashing':
+			return 32;
 		default:
 			return 8;
 	}
@@ -687,13 +743,31 @@ function checkCollisionPixelsChanged() {
 	lastCollisionPixels = new Uint8ClampedArray(currentData);
 }
 
+function checkIfOnSlab(lemming) {
+    const centerX = Math.floor(lemming.x + lemming.width / 2);
+    const footY = Math.floor(lemming.y + lemming.height);
+
+    for (let offset = -8; offset <= 8; offset++) {
+        const sampleX = centerX + offset;
+        const pixel = getPixelColor(sampleX, footY);
+        if ((pixel[0] === BUILDER_SLAB_COLOR.r && pixel[1] === BUILDER_SLAB_COLOR.g && pixel[2] === BUILDER_SLAB_COLOR.b) || (pixel[0] === 255 && pixel[1] === 255 && pixel[2] === 255)) {
+            lemming.walkingOnSlab = true;
+            return;
+        }
+    }
+
+    lemming.walkingOnSlab = false;
+}
+
 function moveLemmingInstance(lemming) {
 	if (lemming.state === 'walking') {
-      if (lemming.facing === 'right') {
-				lemming.x += 2;
-			} else if (lemming.facing === 'left') {
-				lemming.x -= 2;
-			}
+        if (lemming.facing === 'right') {
+			lemming.x += 2;
+		} else if (lemming.facing === 'left') {
+			lemming.x -= 2;
+		}
+
+		checkIfOnSlab(lemming);
 
 		if (lemming.x < 0 || (lemming.x + lemming.width > LEVEL_WIDTH)) {
 			lemming.active = false;
@@ -718,8 +792,15 @@ function moveLemmingInstance(lemming) {
 			}
 			lemming.y -= 2;
 		}
+	} else if (lemming.state === 'bashing') {
+		if ([1, 3, 11, 13, 15, 17, 19, 21, 29, 31].includes(lemming.frameIndex)) {
+			if (lemming.facing === 'right') {
+				lemming.x += 1.5;
+			} else if (lemming.facing === 'left') {
+				lemming.x -= 1.5;
+			}
+		}
 	}
-
 
 	const canvasHeight = getElements().canvas.height;
 	if (lemming.y > canvasHeight) {
@@ -784,10 +865,12 @@ function applyGravity(lemming) {
 			if (lemming.state === 'blocking') {
 				lemming.collisionBox = false;
 			}
-			lemming.lastState = lemming.state;
-			lemming.state = 'falling';
-			lemming.fallenDistance = 0;
-			lemming.dieUponImpact = false;
+			if (!lemming.walkingOnSlab) {
+				lemming.lastState = lemming.state;
+				lemming.state = 'falling';
+				lemming.fallenDistance = 0;
+				lemming.dieUponImpact = false;
+			}
 		}
 		return;
 	}
@@ -885,6 +968,37 @@ function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex
 	);
 }
 
+function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
+	const frameWidth = spriteFrames[0].w;
+	const frameHeight = spriteFrames[0].h;
+
+	let row;
+	let rowOffset;
+
+	if (facing === 'right') {
+		row = frameIndex < 16 ? 17 : 18;
+		rowOffset = frameIndex % 16;
+	} else {
+		row = frameIndex < 16 ? 19 : 20;
+		rowOffset = frameIndex % 16;
+	}
+
+	const spriteIndex = row * FRAMES_PER_ROW + rowOffset;
+	const frame = spriteFrames[spriteIndex];
+
+	if (!frame) return;
+
+	ctx.drawImage(
+		spriteSheet,
+		frame.x, frame.y,
+		frame.w, frame.h,
+		x - cameraX,
+		y,
+		width,
+		height
+	);
+}
+
 function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null) {
 	const cameraX = getCameraX();
 
@@ -894,6 +1008,8 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
 				drawFloatingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX);
 			} else if (lemmingObject && (lemmingObject.state === 'booming')) {
 				drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex ?? 0, cameraX);
+			} else if (lemmingObject && lemmingObject.state === 'bashing') {
+				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
 			} else {
 				if (lemmingObject && lemmingObject.countdownActive) {
 					drawCountdownMarkerOverLemming(ctx, x, y, width, height, lemmingObject.countdownFrameIndex, cameraX, lemmingObject.state);
@@ -1171,7 +1287,6 @@ function clearSpawnMarkersFromCollisionCanvas() {
 	if (!collisionCanvas) return;
 
 	const ctx = collisionCanvas.getContext('2d');
-
 	const width = collisionCanvas.width;
 	const height = collisionCanvas.height;
 	const imageData = ctx.getImageData(0, 0, width, height);
@@ -1419,7 +1534,6 @@ function floodFillCollisionObjectsByColor(collisionImage) {
 }
 
 function isSolidPixel(pixel) {
-    // Ignore builder slab color and pixels under threshold
     if (
         (typeof BUILDER_SLAB_COLOR !== 'undefined' &&
          pixel[0] === BUILDER_SLAB_COLOR.r &&
@@ -1429,6 +1543,36 @@ function isSolidPixel(pixel) {
         return false;
     }
     return (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD);
+}
+
+function turnLemmingIfCollidesWithWall(lemming) {
+    const height = lemming.height;
+    const checkHeight = Math.floor(height * 0.6);
+    const footY = Math.floor(lemming.y + height); // bottom Y
+
+    const footX = (lemming.facing === 'right') 
+        ? Math.floor(lemming.x + lemming.width) + 1 
+        : Math.floor(lemming.x) - 1;
+
+    let solidCount = 0;
+    let highestSolidOffset = null;
+
+    for (let offset = 0; offset < checkHeight; offset++) {
+        const sampleY = footY - offset;
+        const pixel = getPixelColor(footX, sampleY);
+        if (isSolidPixel(pixel)) {
+            solidCount++;
+            if (highestSolidOffset === null) {
+                highestSolidOffset = offset;
+            }
+        }
+    }
+
+    if (solidCount >= checkHeight / 2) {
+        lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
+        lemming.dx = -lemming.dx;
+        lemming.turnCooldown = TURN_COOLDOWN;
+    }
 }
 
 function adjustLemmingHeight(lemming) {
@@ -1457,10 +1601,7 @@ function adjustLemmingHeight(lemming) {
             lemming.state = 'climbing';
             return;
         }
-
-        lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
-        lemming.dx = -lemming.dx;
-        lemming.turnCooldown = TURN_COOLDOWN;
+		turnLemmingIfCollidesWithWall(lemming);
         return;
     }
 
@@ -1490,33 +1631,25 @@ function adjustLemmingHeight(lemming) {
             if (!lemming.countdownActive && !lemming.nukeActive) {
                 lemming.state = 'walking';
             }
-        } else {
-            // Wall too tall — turn around
-            if (lemming.turnCooldown === 0) {
-                lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
-                lemming.dx = -Math.abs(lemming.dx);
-                lemming.turnCooldown = TURN_COOLDOWN;
-            }
         }
     } else {
-        let airPixelCount = 0;
+        let airPixelUnderFeetCount = 0;
         for (let offset = 1; offset <= 10; offset++) {
             const sampleY = bottomY + offset;
             const pixel = getPixelColor(footX, sampleY);
-            if (
-                (pixel[0] <= 10 && pixel[1] <= 10 && pixel[2] <= 10) ||
-                (typeof BUILDER_SLAB_COLOR !== 'undefined' &&
+            if ((pixel[0] <= PIXEL_THRESHOLD && pixel[1] <= PIXEL_THRESHOLD && pixel[2] <= PIXEL_THRESHOLD) ||
+                (
                  pixel[0] === BUILDER_SLAB_COLOR.r &&
                  pixel[1] === BUILDER_SLAB_COLOR.g &&
                  pixel[2] === BUILDER_SLAB_COLOR.b)
             ) {
-                airPixelCount++;
+                airPixelUnderFeetCount++;
             } else {
                 break;
             }
         }
 
-        if (airPixelCount >= 1 && airPixelCount < 10) {
+        if (airPixelUnderFeetCount >= 1 && airPixelUnderFeetCount < 10 && !lemming.walkingOnSlab) {
 				lemming.lastState = lemming.state;
                 lemming.state = 'falling';
                 lemming.fallenDistance = 0;
@@ -1579,40 +1712,43 @@ function drawDetectedObjects(ctx, detectedObjects) {
 
 function getSpriteRowForLemming(state, facing) {
 	if (state === 'walking') {
-		return facing === 'right' ? 0 : 1;
+		return facing === 'right' ? [0] : [1];
 	}
 	if (state === 'falling') {
-		return facing === 'right' ? 2 : 3;
+		return facing === 'right' ? [2] : [3];
 	}
 	if (state === 'climbing') {
-		return facing === 'right' ? 4 : 5;
+		return facing === 'right' ? [4] : [5];
 	}
 	if (state === 'toppingOut') {
-		return facing === 'right' ? 8 : 9;
+		return facing === 'right' ? [8] : [9];
 	}
 	if (state === 'floating') {
-		//handled in special case
-		return 0;
+		return [0]; // handled elsewhere
 	}
 	if (state === 'blocking') {
-		return 10;
+		return [10];
 	}
 	if (state === 'dyingFalling') {
-		return 11;
+		return [11];
 	}
 	if (state === 'exploding') {
-		return 12;
+		return [12];
 	}
 	if (state === 'disintegrating') {
-		return 13;
+		return [13];
 	}
 	if (state === 'building') {
-		return facing === 'right' ? 14 : 15;
+		return facing === 'right' ? [14] : [15];
 	}
 	if (state === 'runOutOfSlabs') {
-		return 16;
+		return [16];
 	}
-	return 0;
+	if (state === 'bashing') {
+		return facing === 'right' ? [17, 18] : [19, 20];
+	}
+
+	return [0];
 }
 
 function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
@@ -1696,6 +1832,46 @@ export function handleLemmingClick(lemming) {
         setLevelToolsRemaining(currentTool, toolsRemaining[currentTool] - 1);
         return;
     }
+}
+
+function bashBlock(ctx, lemming, x, y, radius) {
+
+	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
+
+	const imageData = ctx.getImageData(
+		Math.floor(checkOffsetX - radius),
+		Math.floor(y - radius),
+		Math.ceil(radius * 2),
+		Math.ceil(radius * 2)
+	);
+	const data = imageData.data;
+	let totalPixels = 0;
+	let solidPixels = 0;
+
+	const diameter = Math.ceil(radius * 2);
+	for (let dy = 0; dy < diameter; dy++) {
+		for (let dx = 0; dx < diameter; dx++) {
+			const px = dx - radius;
+			const py = dy - radius;
+			if (px * px + py * py <= radius * radius) {
+				const index = (dy * diameter + dx) * 4;
+				const pixel = [data[index], data[index + 1], data[index + 2]];
+				totalPixels++;
+				if (isSolidPixel(pixel)) solidPixels++;
+			}
+		}
+	}
+
+	ctx.fillStyle = 'rgb(0,0,0)';
+	ctx.beginPath();
+	ctx.arc(x, y, radius, 0, Math.PI * 2);
+	ctx.fill();
+
+	const solidRatio = solidPixels / totalPixels;
+	if (solidRatio < 0.04) {
+		lemming.reachedEndOfBashingSquare += 1;
+	}
+	updateCollisionPixels();
 }
 
 function buildSlab(lemming) {
