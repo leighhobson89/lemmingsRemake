@@ -140,8 +140,8 @@ export async function startGame() {
 }
 
 async function updateCanvasSize(container, canvas, ctx) {
-	const canvasWidth = container.clientWidth;
-	const canvasHeight = container.clientHeight * 0.8;
+	const canvasWidth = container.clientWidth * 0.95;
+	const canvasHeight = container.clientHeight;
 
 	canvas.style.width = `${canvasWidth}px`;
 	canvas.style.height = `${canvasHeight}px`;
@@ -849,7 +849,6 @@ function applyGravity(lemming) {
 		return;
 	}
 
-	// Not falling
 	const onGround = isOnGround(lemming);
 
 	// If not on ground and not floating, start falling (unless in special states)
@@ -1222,7 +1221,7 @@ function isOnGround(lemming) {
 
     let solidCount = 0;
     let total = 0;
-    for (let offset = -12; offset <= 12; offset++) {
+    for (let offset = -8; offset <= 8; offset++) {
         const x = centerX + offset;
         if (x < 0 || x >= width || y < 0 || y >= getCollisionCanvas().height) continue;
         total++;
@@ -1548,11 +1547,12 @@ function isSolidPixel(pixel) {
 function turnLemmingIfCollidesWithWall(lemming) {
     const height = lemming.height;
     const checkHeight = Math.floor(height * 0.6);
-    const footY = Math.floor(lemming.y + height); // bottom Y
+    const footY = Math.floor(lemming.y + height);
 
-    const footX = (lemming.facing === 'right') 
-        ? Math.floor(lemming.x + lemming.width) + 1 
-        : Math.floor(lemming.x) - 1;
+	const footX = (lemming.facing === 'right')
+		? Math.floor(lemming.x + lemming.width) - 4
+		: Math.floor(lemming.x) + 4;
+
 
     let solidCount = 0;
     let highestSolidOffset = null;
@@ -1835,7 +1835,6 @@ export function handleLemmingClick(lemming) {
 }
 
 function bashBlock(ctx, lemming, x, y, radius) {
-
 	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
 
 	const imageData = ctx.getImageData(
@@ -1849,6 +1848,7 @@ function bashBlock(ctx, lemming, x, y, radius) {
 	let solidPixels = 0;
 
 	const diameter = Math.ceil(radius * 2);
+
 	for (let dy = 0; dy < diameter; dy++) {
 		for (let dx = 0; dx < diameter; dx++) {
 			const px = dx - radius;
@@ -1869,10 +1869,36 @@ function bashBlock(ctx, lemming, x, y, radius) {
 
 	const solidRatio = solidPixels / totalPixels;
 	if (solidRatio < 0.04) {
-		lemming.reachedEndOfBashingSquare += 1;
+		lemming.reachedEndOfBashingSquare++;
 	}
+
+	let edgeSolidCount = 0;
+	let edgeTotal = 0;
+
+	const rowsToCheck = 4;
+
+	for (let row = 0; row < rowsToCheck; row++) {
+		const dy = diameter - 1 - row; 
+
+		const halfStart = Math.floor(diameter * 0.25);
+		const halfEnd = Math.ceil(diameter * 0.75);
+
+		for (let dx = halfStart; dx < halfEnd; dx++) {
+			const index = (dy * diameter + dx) * 4;
+			const pixel = [data[index], data[index + 1], data[index + 2]];
+			edgeTotal++;
+			if (isSolidPixel(pixel)) edgeSolidCount++;
+		}
+	}
+
+	const edgeSolidRatio = edgeSolidCount / edgeTotal;
+	if (edgeSolidRatio < 0.5) {
+		lemming.reachedEndOfBashingSquare++;
+	}
+
 	updateCollisionPixels();
 }
+
 
 function buildSlab(lemming) {
     const collisionCanvas = getCollisionCanvas();
@@ -1894,17 +1920,13 @@ function buildSlab(lemming) {
         secondSlabX = firstSlabX - slabWidth;
     }
 
-    // If buildingSlabs is less than 4, both slabs are white
     if ((lemming.buildingSlabs || 0) < 4) {
         ctx.fillStyle = 'rgb(255,255,255)';
         ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
         ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
     } else {
-        // Draw first slab (white)
         ctx.fillStyle = 'rgb(255,255,255)';
         ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
-
-        // Draw second slab (BUILDER_SLAB_COLOR)
         ctx.fillStyle = BUILDER_SLAB_COLOR;
         ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
     }
@@ -1913,11 +1935,11 @@ function buildSlab(lemming) {
     ? secondSlabX + slabWidth - 1
     : secondSlabX - slabWidth + 1;
 
-	let allNotBlack = true;
+	let allNotBlack = false;
 	for (let dy = 0; dy < 3; dy++) {
 		const pixel = getPixelColor(extremeEdgeX, slabY + dy);
-		if (pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0) {
-			allNotBlack = false;
+		if (pixel[0] > PIXEL_THRESHOLD && pixel[1] > PIXEL_THRESHOLD && pixel[2] > PIXEL_THRESHOLD && lemming.buildingSlabs > 2) {
+			allNotBlack = true;
 			break;
 		}
 	}

@@ -234,7 +234,8 @@ export function getNewLemmingObject() {
 }
 
 //GLOBAL VARIABLES
-let brushRadius = 10;
+let lastPaintClickLocation = null;
+let brushRadius = 15;
 let releaseRate = 1000;
 let lemmingsObjects = [];
 let collisionImage = null;
@@ -247,6 +248,7 @@ let collisionCtx = null;
 let numberOfLemmingsForCurrentLevel = 0;
 let lemmingsRescued = 0;
 let currentTool = 'climberTool';
+let paintColor = '#FFFFFF';
 
 //FLAGS
 let audioMuted;
@@ -290,6 +292,7 @@ export function setElements() {
         overlay: document.getElementById('overlay'),
         customCursor: document.getElementById('customCursor'),
         paintButton: document.getElementById('paintMode'),
+        colorPallette: document.getElementById('colorPallette'),
     };
 }
 
@@ -644,3 +647,19 @@ export function setFrameDuration(value) {
 export function getFrameDuration() {
     return frameDuration;
 }   
+
+export function setPaintColor(value) {
+  paintColor = value;
+}
+
+export function getPaintColor() {
+  return paintColor;
+}  
+
+export function setLastPaintClickLocation({ x, y }) {
+  lastPaintClickLocation = { x, y };
+}  
+
+export function getLastPaintClickLocation() {
+  return lastPaintClickLocation;
+}  

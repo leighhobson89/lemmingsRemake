@@ -1,4 +1,9 @@
 import { 
+    setLastPaintClickLocation,
+    getLastPaintClickLocation,
+    setBrushRadius,
+    setPaintColor,
+    getPaintColor,
     FAST_FORWARD_AMOUNT,
     setLemmingsReleased,
     NUKE_CLICK_THRESHOLD,   
@@ -85,271 +90,334 @@ export let latestMousePos = {
 export let isCursorInsideCanvas = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    setElements();
-    const canvas = getElements().canvas;
+  setElements();
+  const canvas = getElements().canvas;
 
-    toolButtons.forEach(toolId => {
-        const btn = document.getElementById(toolId);
-        if (!btn) return;
+  toolButtons.forEach((toolId) => {
+    const btn = document.getElementById(toolId);
+    if (!btn) return;
 
-        btn.addEventListener('click', () => {
-            setCurrentTool(toolId);
+    btn.addEventListener("click", () => {
+      setCurrentTool(toolId);
 
-            toolButtons.forEach(id => {
-                const button = document.getElementById(id);
-                if (!button) return;
+      toolButtons.forEach((id) => {
+        const button = document.getElementById(id);
+        if (!button) return;
 
-                if (id === toolId) {
-                    button.classList.remove('btn-secondary');
-                    button.classList.add('btn-success');
-                } else {
-                    button.classList.remove('btn-success');
-                    button.classList.add('btn-secondary');
-                }
-            });
+        if (id === toolId) {
+          button.classList.remove("btn-secondary");
+          button.classList.add("btn-success");
+        } else {
+          button.classList.remove("btn-success");
+          button.classList.add("btn-secondary");
+        }
+      });
+    });
+  });
+
+  canvas.addEventListener("mouseenter", () => {
+    isCursorInsideCanvas = true;
+    enableCustomCursor();
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    isCursorInsideCanvas = false;
+    disableCustomCursor();
+  });
+
+  // Event listeners
+  // release rate Buttons
+  setupHoldableButton(
+    document.getElementById("releaseRateMinus"),
+    decreaseReleaseRate
+  );
+  setupHoldableButton(
+    document.getElementById("releaseRatePlus"),
+    increaseReleaseRate
+  );
+
+  // Nuke button
+  let lastNukeClickTime = 0;
+  document.getElementById("nukeButton").addEventListener("click", () => {
+    const now = Date.now();
+
+    if (now - lastNukeClickTime <= NUKE_CLICK_THRESHOLD) {
+      triggerNuke();
+      lastNukeClickTime = 0;
+    } else {
+      lastNukeClickTime = now;
+    }
+  });
+
+  // Fast forward button
+  document
+    .getElementById("fastForwardButton")
+    .addEventListener("click", () => toggleFastForward());
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    latestMousePos.x = e.clientX - rect.left;
+    latestMousePos.y = e.clientY - rect.top;
+
+    const canvasWidth = getElements().canvas.width;
+    const x = e.clientX - rect.left;
+
+    setScrollLeftFlag(x < SCROLL_EDGE_THRESHOLD);
+    setScrollRightFlag(x > canvasWidth - SCROLL_EDGE_THRESHOLD);
+
+    if (!getPaintMode() || !getIsPainting()) return;
+
+    let paintType;
+
+    if (e.buttons & 1) {
+      paintType = "add";
+    } else if (e.buttons & 2) {
+      paintType = "remove";
+    } else {
+      setIsPainting(false);
+      return;
+    }
+
+    paintAtMouse(e, paintType);
+  });
+
+  const debugBtn = document.getElementById("debugMode");
+
+  debugBtn.addEventListener("click", () => {
+    updatePaintButtonState();
+    let debugMode = getDebugMode();
+    debugMode = !debugMode;
+    setDebugMode(debugMode);
+
+    if (debugMode) {
+      debugBtn.classList.remove("btn-warning");
+      debugBtn.classList.add("btn-success");
+    } else {
+      debugBtn.classList.remove("btn-success");
+      debugBtn.classList.add("btn-warning");
+      setPaintMode(false);
+    }
+  });
+
+  document.querySelectorAll(".color-pallette-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const color = window.getComputedStyle(item).backgroundColor;
+      setPaintColor(color);
+    });
+  });
+
+  const paintBtn = document.getElementById("paintMode");
+
+  paintBtn.addEventListener("click", () => {
+    let paintMode = getPaintMode();
+    paintMode = !paintMode;
+    setPaintMode(paintMode);
+
+    const items = document.querySelectorAll(".color-pallette-item");
+
+    if (paintMode) {
+      paintBtn.classList.remove("btn-warning");
+      paintBtn.classList.add("btn-success");
+      getElements().colorPallette.style.opacity = "1";
+      getElements().colorPallette.style.pointerEvents = "auto";
+
+      items.forEach((item) => {
+        item.style.cursor = "pointer";
+      });
+    } else {
+      paintBtn.classList.remove("btn-success");
+      paintBtn.classList.add("btn-warning");
+      getElements().colorPallette.style.opacity = "0.5";
+      getElements().colorPallette.style.pointerEvents = "none";
+
+      items.forEach((item) => {
+        item.style.cursor = "default";
+      });
+    }
+  });
+
+  const brushRadiusElements = document.querySelectorAll(
+    '[class*="brush-radius-"]'
+  );
+
+    brushRadiusElements.forEach((el) => {
+        const brushClass = Array.from(el.classList).find((cls) =>
+        cls.startsWith("brush-radius-")
+        );
+
+        if (brushClass) {
+        const radius = parseInt(brushClass.split("-").pop(), 10);
+
+        el.addEventListener("click", () => {
+            setBrushRadius(radius / 2);
         });
-    });
-
-    canvas.addEventListener('mouseenter', () => {
-        isCursorInsideCanvas = true;
-        enableCustomCursor();
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-        isCursorInsideCanvas = false;
-        disableCustomCursor();
-    });
-
-    // Event listeners
-    // release rate Buttons
-    setupHoldableButton(document.getElementById('releaseRateMinus'), decreaseReleaseRate);
-    setupHoldableButton(document.getElementById('releaseRatePlus'), increaseReleaseRate);
-
-    // Nuke button
-    let lastNukeClickTime = 0;
-    document.getElementById('nukeButton').addEventListener('click', () => {
-        const now = Date.now();
-
-        if (now - lastNukeClickTime <= NUKE_CLICK_THRESHOLD) {
-            triggerNuke();
-            lastNukeClickTime = 0;
-        } else {
-            lastNukeClickTime = now;
         }
     });
 
-    // Fast forward button
-    document.getElementById('fastForwardButton').addEventListener('click', () => toggleFastForward());
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        latestMousePos.x = e.clientX - rect.left;
-        latestMousePos.y = e.clientY - rect.top;
+  canvas.addEventListener("mousedown", (e) => {
+    const isLeftClick = e.button === 0;
+    const isRightClick = e.button === 2;
 
-        const canvasWidth = getElements().canvas.width;
-        const x = e.clientX - rect.left;
+    if (getPaintMode()) {
+      if (!isLeftClick && !isRightClick) return;
 
-        setScrollLeftFlag(x < SCROLL_EDGE_THRESHOLD);
-        setScrollRightFlag(x > canvasWidth - SCROLL_EDGE_THRESHOLD);
+      const paintType = isLeftClick ? "add" : "remove";
 
-        if (!getPaintMode() || !getIsPainting()) return;
-
-        let paintType;
-
-        if (e.buttons & 1) {
-            paintType = 'add';
-        } else if (e.buttons & 2) {
-            paintType = 'remove';
-        } else {
-            setIsPainting(false);
-            return;
-        }
-
+      if (e.shiftKey && isLeftClick) {
+        const { x: startX, y: startY } = getLastPaintClickLocation();
+        drawLineToMouse(startX, startY, e, paintType);
+      } else {
+        setLastPaintClickLocation({ x: e.clientX, y: e.clientY });
+        setIsPainting(true);
         paintAtMouse(e, paintType);
-    });
+      }
 
-    const debugBtn = document.getElementById('debugMode');
+      return; // Only return if paint actually occurred
+    }
 
-    debugBtn.addEventListener('click', () => {
-        updatePaintButtonState();
-        let debugMode = getDebugMode();
-        debugMode = !debugMode;
-        setDebugMode(debugMode);
+    // --- Not in paint mode, do lemming logic ---
+    const rect = getElements().canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-        if (debugMode) {
-            debugBtn.classList.remove('btn-warning');
-            debugBtn.classList.add('btn-success');
-        } else {
-            debugBtn.classList.remove('btn-success');
-            debugBtn.classList.add('btn-warning');
-            setPaintMode(false);
+    const worldX = mouseX + getCameraX();
+    const worldY = mouseY;
+
+    let closestLemming = null;
+    let minDistance = Infinity;
+
+    for (const lemming of getLemmingsObjects()) {
+      if (isPointInsideLemming(worldX, worldY, lemming)) {
+        const centerX = lemming.x + lemming.width / 2;
+        const centerY = lemming.y + lemming.height / 2;
+        const dx = worldX - centerX;
+        const dy = worldY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestLemming = lemming;
         }
-    });
+      }
+    }
 
-    const paintBtn = document.getElementById('paintMode');
+    if (closestLemming) {
+      handleLemmingClick(closestLemming);
+    }
+  });
+  
+  
 
-    paintBtn.addEventListener('click', () => {
-        let paintMode = getPaintMode();
-        paintMode = !paintMode;
-        setPaintMode(paintMode);
+  canvas.addEventListener("mouseup", () => {
+    setIsPainting(false);
+    updateCollisionPixels()
+  });
 
-        if (paintMode) {
-            paintBtn.classList.remove('btn-warning');
-            paintBtn.classList.add('btn-success');
-        } else {
-            paintBtn.classList.remove('btn-success');
-            paintBtn.classList.add('btn-warning');
-        }
-    });
+  canvas.addEventListener("mouseleave", () => {
+    setIsPainting(false);
+  });
 
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  getElements().newGameMenuButton.addEventListener("click", () => {
+    setBeginGameStatus(true);
+    if (!getGameInProgress()) {
+      setGameInProgress(true);
+    }
+    disableActivateButton(
+      getElements().resumeGameMenuButton,
+      "active",
+      "btn-primary"
+    );
+    disableActivateButton(
+      getElements().saveGameButton,
+      "active",
+      "btn-primary"
+    );
+    setGameState(getGameVisiblePaused());
+    startGame();
+  });
 
-    canvas.addEventListener('mousedown', (e) => {
-        if (getPaintMode()) {
-            let paintType;
+  getElements().pauseResumeGameButton.addEventListener("click", () => {
+    if (gameState === getGameVisiblePaused()) {
+      if (getBeginGameStatus()) {
+        setBeginGameStatus(false);
+      }
+      setGameState(getGameVisibleActive());
+    } else if (gameState === getGameVisibleActive()) {
+      setGameState(getGameVisiblePaused());
+    }
+  });
 
-            if (e.button === 0) {
-                paintType = 'add';
-            } else if (e.button === 2) {
-                paintType = 'remove';
-            } else {
-                return;
-            }
+  getElements().resumeGameMenuButton.addEventListener("click", () => {
+    if (gameState === getMenuState()) {
+      setGameState(getGameVisiblePaused());
+    }
+    gameLoop();
+  });
 
-            setIsPainting(true);
-            paintAtMouse(e, paintType);
-            return;
-        }
-
-        const rect = getElements().canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const worldX = mouseX + getCameraX();
-        const worldY = mouseY;
-
-        let closestLemming = null;
-        let minDistance = Infinity;
-
-        for (const lemming of getLemmingsObjects()) {
-            if (isPointInsideLemming(worldX, worldY, lemming)) {
-                const centerX = lemming.x + lemming.width / 2;
-                const centerY = lemming.y + lemming.height / 2;
-                const dx = worldX - centerX;
-                const dy = worldY - centerY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestLemming = lemming;
-                }
-            }
-        }
-
-        if (closestLemming) {
-            handleLemmingClick(closestLemming);
-        }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-        setIsPainting(false);
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-        setIsPainting(false);
-    });
-
-    getElements().newGameMenuButton.addEventListener('click', () => {
-        setBeginGameStatus(true);
-        if (!getGameInProgress()) {
-            setGameInProgress(true);
-        }
-        disableActivateButton(getElements().resumeGameMenuButton, 'active', 'btn-primary');
-        disableActivateButton(getElements().saveGameButton, 'active', 'btn-primary');
-        setGameState(getGameVisiblePaused());
-        startGame();
-    });
-
-    getElements().pauseResumeGameButton.addEventListener('click', () => {
-        if (gameState === getGameVisiblePaused()) {
-            if (getBeginGameStatus()) {
-                setBeginGameStatus(false);
-            }
-            setGameState(getGameVisibleActive());
-        } else if (gameState === getGameVisibleActive()) {
-            setGameState(getGameVisiblePaused());
-        }
-    });
-
-    getElements().resumeGameMenuButton.addEventListener('click', () => {
-        if (gameState === getMenuState()) {
-            setGameState(getGameVisiblePaused());
-        }
-        gameLoop();
-    });
-
-    getElements().returnToMenuButton.addEventListener('click', () => {
-        setGameState(getMenuState());
-    });
-
-    getElements().btnEnglish.addEventListener('click', () => {
-        handleLanguageChange('en');
-        setGameState(getMenuState());
-    });
-
-    getElements().btnSpanish.addEventListener('click', () => {
-        handleLanguageChange('es');
-        setGameState(getMenuState());
-    });
-
-    getElements().btnGerman.addEventListener('click', () => {
-        handleLanguageChange('de');
-        setGameState(getMenuState());
-    });
-
-    getElements().btnItalian.addEventListener('click', () => {
-        handleLanguageChange('it');
-        setGameState(getMenuState());
-    });
-
-    getElements().btnFrench.addEventListener('click', () => {
-        handleLanguageChange('fr');
-        setGameState(getMenuState());
-    });
-
-    getElements().saveGameButton.addEventListener('click', function() {
-        getElements().overlay.classList.remove('d-none');
-        saveGame(true);
-    });
-
-    getElements().loadGameButton.addEventListener('click', function() {
-        getElements().overlay.classList.remove('d-none');
-        loadGameOption();
-    });
-
-    getElements().copyButtonSavePopup.addEventListener('click', function() {
-        copySaveStringToClipBoard();
-    });
-
-    getElements().closeButtonSavePopup.addEventListener('click', function() {
-        getElements().saveLoadPopup.classList.add('d-none');
-        getElements().overlay.classList.add('d-none');
-    });
-
-    getElements().loadStringButton.addEventListener('click', function() {
-        loadGame(true)
-            .then(() => {
-                setElements();
-                getElements().saveLoadPopup.classList.add('d-none');
-                document.getElementById('overlay').classList.add('d-none');
-                setGameState(getMenuState());
-            })
-            .catch((error) => {
-                console.error('Error loading game:', error);
-            });
-    });
+  getElements().returnToMenuButton.addEventListener("click", () => {
     setGameState(getMenuState());
-    handleLanguageChange(getLanguageSelected());
+  });
+
+  getElements().btnEnglish.addEventListener("click", () => {
+    handleLanguageChange("en");
+    setGameState(getMenuState());
+  });
+
+  getElements().btnSpanish.addEventListener("click", () => {
+    handleLanguageChange("es");
+    setGameState(getMenuState());
+  });
+
+  getElements().btnGerman.addEventListener("click", () => {
+    handleLanguageChange("de");
+    setGameState(getMenuState());
+  });
+
+  getElements().btnItalian.addEventListener("click", () => {
+    handleLanguageChange("it");
+    setGameState(getMenuState());
+  });
+
+  getElements().btnFrench.addEventListener("click", () => {
+    handleLanguageChange("fr");
+    setGameState(getMenuState());
+  });
+
+  getElements().saveGameButton.addEventListener("click", function () {
+    getElements().overlay.classList.remove("d-none");
+    saveGame(true);
+  });
+
+  getElements().loadGameButton.addEventListener("click", function () {
+    getElements().overlay.classList.remove("d-none");
+    loadGameOption();
+  });
+
+  getElements().copyButtonSavePopup.addEventListener("click", function () {
+    copySaveStringToClipBoard();
+  });
+
+  getElements().closeButtonSavePopup.addEventListener("click", function () {
+    getElements().saveLoadPopup.classList.add("d-none");
+    getElements().overlay.classList.add("d-none");
+  });
+
+  getElements().loadStringButton.addEventListener("click", function () {
+    loadGame(true)
+      .then(() => {
+        setElements();
+        getElements().saveLoadPopup.classList.add("d-none");
+        document.getElementById("overlay").classList.add("d-none");
+        setGameState(getMenuState());
+      })
+      .catch((error) => {
+        console.error("Error loading game:", error);
+      });
+  });
+  setGameState(getMenuState());
+  handleLanguageChange(getLanguageSelected());
 })
 
 function setupHoldableButton(element, action) {
@@ -387,7 +455,6 @@ function setupHoldableButton(element, action) {
     element.addEventListener('mouseleave', stop);
 }
 
-
 function paintAtMouse(e, type) {
     const rect = canvas.getBoundingClientRect();
     const rawMouseX = Math.floor(e.clientX - rect.left);
@@ -401,11 +468,6 @@ function paintAtMouse(e, type) {
     }
 
     paintCircleOnBothCanvases(mouseX, mouseY, radius, type);
-
-    setTimeout(() => {
-        updateCollisionPixels();
-    }, 0);
-
 }
 
 function paintCircleOnBothCanvases(centerX, centerY, radius, type) {
@@ -420,7 +482,7 @@ function paintCircleOnBothCanvases(centerX, centerY, radius, type) {
     collisionCtx.clip();
 
     if (type === 'add') {
-        collisionCtx.fillStyle = 'white';
+        collisionCtx.fillStyle = getPaintColor();
         collisionCtx.globalAlpha = 1.0;
         collisionCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
     } else if (type === 'remove') {
@@ -437,7 +499,7 @@ function paintCircleOnBothCanvases(centerX, centerY, radius, type) {
     visualCtx.clip();
 
     if (type === 'add') {
-        visualCtx.fillStyle = 'white';
+        visualCtx.fillStyle = getPaintColor();
         visualCtx.globalAlpha = 1.0;
         visualCtx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
     } else if (type === 'remove') {
@@ -558,6 +620,56 @@ export function getCustomMouseCursor(value) {
             return urlCustomMouseCursorHoverLemming;
     }
 }
+
+function drawLineToMouse(startClientX, startClientY, e, type = "add") {
+  const rect = canvas.getBoundingClientRect();
+  const endClientX = e.clientX;
+  const endClientY = e.clientY;
+
+  const startX = startClientX;
+  const startY = startClientY;
+  const endX = endClientX;
+  const endY = endClientY;
+
+  const dx = Math.abs(endX - startX);
+  const dy = Math.abs(endY - startY);
+  const sx = startX < endX ? 1 : -1;
+  const sy = startY < endY ? 1 : -1;
+
+  let x = startX;
+  let y = startY;
+  let err = dx - dy;
+
+  let stepCount = 0;
+
+  while (true) {
+    if (stepCount % 2 === 0) {
+      const syntheticEvent = {
+        clientX: x,
+        clientY: y,
+      };
+      paintAtMouse(syntheticEvent, type, true); // skipUpdate = true
+    }
+
+    if (x === endX && y === endY) break;
+
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+
+    stepCount++;
+  }
+
+  updateCollisionPixels();
+  setLastPaintClickLocation({ x: endClientX, y: endClientY });
+}
+  
 
 export function trackCursor(pos) {
     if (!pos) return;

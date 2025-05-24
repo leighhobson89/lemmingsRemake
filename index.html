@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <img id="customCursor" class="d-none" src="./assets/mouse/mouseCrosshair.png" />
     <!-- Menu Container -->
@@ -34,72 +36,117 @@
         <button id="loadGame" class="btn btn-primary mb-2">Load Game Placeholder</button>
         <button id="saveGame" class="btn disabled">Save Game Placeholder</button>
     </div>
-
     <!--Save Load Game Input Field-->
-<div id="loadSaveGameStringPopup" class="save-load-popup-container bg-dark p-4 rounded shadow-lg d-none">
-    <div class="save-load-header-container d-flex justify-content-between align-items-center mb-3">
-      <div class="save-load-header">Copy String To A Text File:</div>
-      <div class="save-load-buttons-container">
-        <button id="loadStringButton" class="save-load-buttons btn btn-success btn-sm flex-grow-1 mr-4">Load</button>
-        <button id="copyButtonSavePopup" class="save-load-buttons btn btn-success btn-sm flex-grow-1 mr-4">Copy</button>
-        <button id="closeButtonSavePopup" class="save-load-buttons btn btn-danger btn-sm flex-grow-0">Close</button>
-      </div>
-    </div>
-    <div class="save-load-input-container">
-      <textarea id="loadSaveGameStringTextArea" class="save-load-input-field" aria-label=""></textarea>
-    </div>
-  </div>
-
-    <!-- Canvas Container -->
-    <div id="canvasContainer" class="d-none">
-        <div id="buttonRow" class="d-flex justify-content-center mb-4">
-            <button id="returnToMenu" class="btn btn-secondary mr-2">Return to Menu</button>
-            <button id="resumeGame" class="btn btn-primary">Pause</button>
-            <button id="paintMode" class="btn btn-warning">Paint</button>
-            <button id="debugMode" class="btn btn-warning">DEBUG</button>
-        </div>
-        <!-- Canvas Row -->
-        <canvas class="d-flex justify-content-center" id="canvas"></canvas>
-        <!-- Tool Row -->
-        <div id="lemmingToolRow" class="container-fluid mb-3">
-            <div class="row row-cols-auto g-1">
-
-                <!-- Release Rate Controls -->
-                <div class="col"><button id="releaseRateMinus" class="btn btn-success w-100 releaseRateMinusClass">-</button></div>
-                <div class="col"><button id="releaseRatePlus" class="btn btn-danger w-100 releaseRatePlusClass">+</button></div>
-
-                <!-- Classic Tools -->
-                <div class="col"><button id="climberTool" class="btn btn-success w-100 climberClass">Climber</button></div>
-                <div class="col"><button id="floaterTool" class="btn btn-secondary w-100 floaterClass">Floater</button></div>
-                <div class="col"><button id="exploderTool" class="btn btn-secondary w-100 exploderClass">Exploder</button></div>
-                <div class="col"><button id="blockerTool" class="btn btn-secondary w-100 blockerClass">Blocker</button></div>
-                <div class="col"><button id="builderTool" class="btn btn-secondary w-100 builderClass">Builder</button></div>
-                <div class="col"><button id="basherTool" class="btn btn-secondary w-100 basherClass">Basher</button></div>
-                <div class="col"><button id="minerTool" class="btn btn-secondary w-100 minerClass">Miner</button></div>
-                <div class="col"><button id="diggerTool" class="btn btn-secondary w-100 diggerClass">Digger</button></div>
-
-                <!-- Nuke Button -->
-                <div class="col"><button id="nukeButton" class="btn btn-danger w-100 nukeClass">NUKE</button></div>
-
-                <!-- Fast Forward Button -->
-                <div class="col"><button id="fastForwardButton" class="btn btn-warning w-100 fastForwardClass">⏩</button></div>
-
+    <div id="loadSaveGameStringPopup" class="save-load-popup-container bg-dark p-4 rounded shadow-lg d-none">
+        <div class="save-load-header-container d-flex justify-content-between align-items-center mb-3">
+            <div class="save-load-header">Copy String To A Text File:</div>
+            <div class="save-load-buttons-container">
+                <button id="loadStringButton"
+                    class="save-load-buttons btn btn-success btn-sm flex-grow-1 mr-4">Load</button>
+                <button id="copyButtonSavePopup"
+                    class="save-load-buttons btn btn-success btn-sm flex-grow-1 mr-4">Copy</button>
+                <button id="closeButtonSavePopup"
+                    class="save-load-buttons btn btn-danger btn-sm flex-grow-0">Close</button>
             </div>
         </div>
-
-    <!-- Overlay -->
-    <div id="overlay" class="d-none overlay">
+        <div class="save-load-input-container">
+            <textarea id="loadSaveGameStringTextArea" class="save-load-input-field" aria-label=""></textarea>
+        </div>
     </div>
-
+    <div id="buttonRow" class="d-flex justify-content-center mb-4">
+        <button id="returnToMenu" class="btn btn-secondary mr-2">Return to Menu</button>
+        <button id="resumeGame" class="btn btn-primary">Pause</button>
+        <button id="debugMode" class="btn btn-warning">DEBUG</button>
+        <button id="paintMode" class="btn btn-warning">Paint</button>
+    </div>
+    <!-- Canvas and Palette Container -->
+    <div id="canvasContainer" class="d-flex">
+        <canvas id="canvas" style="flex: 0 0 90%; display: block;"></canvas>
+        <div id="colorPallette" class="color-pallette-container">
+            <!-- Color Swatches -->
+            <div class="color-pallette-item" style="background-color: #FF0000;"></div>
+            <div class="color-pallette-item" style="background-color: #00FF00;"></div>
+            <div class="color-pallette-item" style="background-color: #0000FF;"></div>
+            <div class="color-pallette-item" style="background-color: #FFFF00;"></div>
+            <div class="color-pallette-item" style="background-color: #00FFFF;"></div>
+            <div class="color-pallette-item" style="background-color: #FFFFFF;"></div>
+            <!-- Brush Radius Selectors -->
+            <div class="brush-radius brush-radius-5">
+                <div class="brush-radius-circle"></div>
+            </div>
+            <div class="brush-radius brush-radius-10">
+                <div class="brush-radius-circle"></div>
+            </div>
+            <div class="brush-radius brush-radius-15">
+                <div class="brush-radius-circle"></div>
+            </div>
+            <div class="brush-radius brush-radius-20">
+                <div class="brush-radius-circle"></div>
+            </div>
+            <div class="brush-radius brush-radius-25">
+                <div class="brush-radius-circle"></div>
+            </div>
+            <div class="brush-radius brush-radius-30">
+                <div class="brush-radius-circle"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Tool Row -->
+    <div id="lemmingToolRow" class="container-fluid mb-3">
+        <div class="row row-cols-auto g-1">
+            <!-- Release Rate Controls -->
+            <div class="col">
+                <button id="releaseRateMinus" class="btn btn-success w-100 releaseRateMinusClass">-</button>
+            </div>
+            <div class="col">
+                <button id="releaseRatePlus" class="btn btn-danger w-100 releaseRatePlusClass">+</button>
+            </div>
+            <!-- Classic Tools -->
+            <div class="col">
+                <button id="climberTool" class="btn btn-success w-100 climberClass">Climber</button>
+            </div>
+            <div class="col">
+                <button id="floaterTool" class="btn btn-secondary w-100 floaterClass">Floater</button>
+            </div>
+            <div class="col">
+                <button id="exploderTool" class="btn btn-secondary w-100 exploderClass">Exploder</button>
+            </div>
+            <div class="col">
+                <button id="blockerTool" class="btn btn-secondary w-100 blockerClass">Blocker</button>
+            </div>
+            <div class="col">
+                <button id="builderTool" class="btn btn-secondary w-100 builderClass">Builder</button>
+            </div>
+            <div class="col">
+                <button id="basherTool" class="btn btn-secondary w-100 basherClass">Basher</button>
+            </div>
+            <div class="col">
+                <button id="minerTool" class="btn btn-secondary w-100 minerClass">Miner</button>
+            </div>
+            <div class="col">
+                <button id="diggerTool" class="btn btn-secondary w-100 diggerClass">Digger</button>
+            </div>
+            <!-- Nuke Button -->
+            <div class="col">
+                <button id="nukeButton" class="btn btn-danger w-100 nukeClass">NUKE</button>
+            </div>
+            <!-- Fast Forward Button -->
+            <div class="col">
+                <button id="fastForwardButton" class="btn btn-warning w-100 fastForwardClass">⏩</button>
+            </div>
+        </div>
+    </div>
+    <!-- Overlay -->
+    <div id="overlay" class="d-none overlay"></div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
-
     <script type="module" src="game.js"></script>
     <script type="module" src="localization.js"></script>
     <script type="module" src="constantsAndGlobalVars.js"></script>
     <script type="module" src="ui.js"></script>
     <script type="module" src="utilities.js"></script>
 </body>
+
 </html>
