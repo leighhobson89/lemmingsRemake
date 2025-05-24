@@ -339,7 +339,7 @@ function updateRunOutOfSlabsAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 80;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -360,7 +360,7 @@ function updateBashingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 40;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -399,7 +399,7 @@ function updateBuildingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 30;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -433,7 +433,7 @@ function updateDisintegratingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 40;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -453,7 +453,7 @@ function updateBoomingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 40;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -484,7 +484,7 @@ function updateCountDownAnimation(lemming, deltaTime) {
 
 	lemming.countdownFrameTime += effectiveDelta;
 
-	if (lemming.countdownFrameTime >= ANIMATION_SPEED) {
+	if (lemming.countdownFrameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.countdownFrameTime = 0;
 		lemming.countdownFrameIndex++;
 
@@ -512,7 +512,7 @@ function updateExplodingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 60;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -533,7 +533,7 @@ function updateDyingFallingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 80;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -553,7 +553,7 @@ function updateToppingOutAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 80;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
@@ -574,7 +574,7 @@ function updateFloatingLandingAnimation(lemming, deltaTime) {
 	const ANIMATION_SPEED = 120;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex--;
 
@@ -1760,7 +1760,7 @@ function updateLemmingAnimation(lemming, deltaTime, frameCount = 8) {
 	const ANIMATION_SPEED = 80;
 	lemming.frameTime += deltaTime;
 
-	if (lemming.frameTime >= ANIMATION_SPEED) {
+	if (lemming.frameTime >= ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)) {
 		lemming.frameTime = 0;
 		lemming.frameIndex = (lemming.frameIndex + 1) % frameCount;
 	}
