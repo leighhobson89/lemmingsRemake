@@ -375,15 +375,13 @@ function updateMiningAnimation(lemming, deltaTime) {
   if (lemming.frameTime >= ANIMATION_SPEED) {
     lemming.frameTime = 0;
 
-    if (lemming.frameIndex < 9) {
-		const radius = lemming.height * 0.5;
-    	const centerX = lemming.x + lemming.width / 2;
-    	const centerY = lemming.y + lemming.height / 2;
+	  const radius = lemming.height * 0.5;
+	  const centerX = lemming.x;
+	  const centerY = lemming.y;
 
       const ctx = getCollisionCanvas().getContext("2d");
       ctx.imageSmoothingEnabled = false;
       mineBlock(ctx, lemming, centerX, centerY, radius);
-    }
 
     lemming.frameIndex++;
 
@@ -391,7 +389,7 @@ function updateMiningAnimation(lemming, deltaTime) {
       lemming.frameIndex = 0;
     }
 
-    if (lemming.reachedEndOfMiningSquare > 8) {
+    if (lemming.reachedEndOfMiningSquare > 4) {
       lemming.lastState = lemming.state;
       lemming.state = "walking";
       lemming.frameIndex = 0;
@@ -859,7 +857,7 @@ function moveLemmingInstance(lemming) {
       }
     }
   } else if (lemming.state === "mining") {
-    if (lemming.frameIndex > 9 && lemming.frameIndex <= 17) {
+    if (lemming.frameIndex > 0 && lemming.frameIndex <= 8) {
       if (lemming.facing === "right") {
         lemming.x += 0.8;
 		lemming.y += 0.40;
@@ -1999,18 +1997,19 @@ function mineBlock(ctx, lemming, x, y, radius) {
 
   const checkX = x + offsetX;
   const checkY = y + offsetY;
+  const checkYBelow = checkY + lemming.height / 2;
 
   const imageData = ctx.getImageData(
     Math.floor(checkX - radius),
-    Math.floor(checkY - radius),
+    Math.floor(checkYBelow - radius),
     Math.ceil(radius * 2),
     Math.ceil(radius * 2)
   );
   const data = imageData.data;
   const diameter = Math.ceil(radius * 2);
 
-  let bottomSolidCount = 0;
   let bottomTotal = 0;
+  let bottomSolidCount = 0;
 
   for (let dy = Math.floor(diameter / 2); dy < diameter; dy++) {
     for (let dx = 0; dx < diameter; dx++) {
@@ -2026,8 +2025,18 @@ function mineBlock(ctx, lemming, x, y, radius) {
   }
 
   const bottomSolidRatio = bottomTotal ? bottomSolidCount / bottomTotal : 0;
-  if (bottomSolidRatio < 0.05) {
+  if (bottomSolidRatio < 0.8) {
     lemming.reachedEndOfMiningSquare++;
+	const direction = lemming.facing === "right" ? 1 : -1;
+  for (let i = 0; i < 15; i++) {
+    const arcX = checkX + direction * i;
+    const arcY = checkY + 1 * i * 0.5;
+
+    ctx.fillStyle = "rgb(0,0,0)";
+    ctx.beginPath();
+    ctx.arc(arcX, arcY, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
   }
 
   ctx.fillStyle = "rgb(0,0,0)";
@@ -2036,7 +2045,10 @@ function mineBlock(ctx, lemming, x, y, radius) {
   ctx.fill();
 
   updateCollisionPixels();
-}  
+}
+  
+  
+
 
 function bashBlock(ctx, lemming, x, y, radius) {
 	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
