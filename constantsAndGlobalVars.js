@@ -160,7 +160,7 @@ export const lemmingLevelData = {
             "blockerTool": 6,
             "builderTool": 15,
             "basherTool": 10,
-            "minerTool": 1,
+            "minerTool": 10,
             "diggerTool": 1
         },
         facing: 'right'
@@ -208,7 +208,8 @@ export const lemmingObject = {
     countdownActive: false,
     active: false,
     name: null,
-    reachedEndOfBashingSquare: 0
+    reachedEndOfBashingSquare: 0,
+    reachedEndOfMiningSquare: 0
 };
 
 export function getNewLemmingObject() {
@@ -229,7 +230,8 @@ export function getNewLemmingObject() {
         countdownActive: false,
         active: false,
         name: null,
-        reachedEndOfBashingSquare: 0
+        reachedEndOfBashingSquare: 0,
+        reachedEndOfMiningSquare: 0
     };
 }
 

@@ -283,7 +283,10 @@ export function gameLoop(time = 0) {
 					} else if (lemming.state === 'bashing') {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateBashingAnimation(lemming, deltaTime, frameCount);
-					} else if (lemming.state === 'runOutOfSlabs') {
+					} else if (lemming.state === "mining") {
+						const frameCount = getFrameCountForState(lemming.state);
+						updateMiningAnimation(lemming, deltaTime, frameCount);
+					} else if (lemming.state === "runOutOfSlabs") {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateRunOutOfSlabsAnimation(lemming, deltaTime, frameCount);
 					} else {
@@ -309,8 +312,13 @@ export function gameLoop(time = 0) {
 					rowNumber = rows;
 					col = lemming.frameIndex;
 				}
+				let spriteIndex;
+				if (lemming.state !== 'mining') {
+					spriteIndex = rowNumber * FRAMES_PER_ROW + col;
+				} else {
+					spriteIndex = rowNumber * FRAMES_PER_ROW + (col * 2);
+				}
 
-				const spriteIndex = rowNumber * FRAMES_PER_ROW + col;
 				drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
 			}
 		}
@@ -351,6 +359,47 @@ function updateRunOutOfSlabsAnimation(lemming, deltaTime) {
 	}
 }
 
+function updateMiningAnimation(lemming, deltaTime) {
+  if (lemming.frameTime === undefined) {
+    lemming.frameTime = 0;
+    lemming.frameIndex = 0;
+  }
+
+  const ANIMATION_SPEED =
+    (lemming.frameIndex >= 0 && lemming.frameIndex <= 2) ||
+    (lemming.frameIndex >= 15 && lemming.frameIndex <= 17)
+      ? 120
+      : 80;
+  lemming.frameTime += deltaTime;
+
+  if (lemming.frameTime >= ANIMATION_SPEED) {
+    lemming.frameTime = 0;
+
+    if (lemming.frameIndex < 9) {
+		const radius = lemming.height * 0.5;
+    	const centerX = lemming.x + lemming.width / 2;
+    	const centerY = lemming.y + lemming.height / 2;
+
+      const ctx = getCollisionCanvas().getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      mineBlock(ctx, lemming, centerX, centerY, radius);
+    }
+
+    lemming.frameIndex++;
+
+    if (lemming.frameIndex > 17) {
+      lemming.frameIndex = 0;
+    }
+
+    if (lemming.reachedEndOfMiningSquare > 8) {
+      lemming.lastState = lemming.state;
+      lemming.state = "walking";
+      lemming.frameIndex = 0;
+      lemming.reachedEndOfMiningSquare = 0;
+    }
+  }
+}	
+
 function updateBashingAnimation(lemming, deltaTime) {
 	if (lemming.frameTime === undefined) {
 		lemming.frameTime = 0;
@@ -364,13 +413,13 @@ function updateBashingAnimation(lemming, deltaTime) {
 		lemming.frameTime = 0;
 		lemming.frameIndex++;
 
-		const radius = lemming.height / 2 + 1;
-		const centerX = lemming.x + lemming.width / 2;
-		const centerY = lemming.y + lemming.height / 2;
-
 		if (
 			([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31].includes(lemming.frameIndex))
 		) {
+			const radius = lemming.height / 2 + 1;
+      		const centerX = lemming.x + lemming.width / 2;
+      		const centerY = lemming.y + lemming.height / 2;
+
 			const shift = lemming.facing === 'right' ? 1 : -1;
 			const canvas = getCollisionCanvas();
 			const ctx = canvas.getContext('2d');
@@ -627,35 +676,37 @@ function setToolsRemainingFromLevelData(startingTools) {
 
 function getFrameCountForState(state) {
 	switch (state) {
-		case 'walking':
-			return 8;
-		case 'climbing':
-			return 8;
-		case 'toppingOut':
-			return 8;
-		case 'floating':
-			return 8;
-		case 'digging':
-			return 8;
-		case 'falling':
-			return 4;
-		case 'blocking':
-			return 16;
-		case 'dyingFalling':
-			return 16;
-		case 'exploding':
-			return 16;
-		case 'disintegrating':
-			return 16;
-		case 'building':
-			return 16;
-		case 'runOutOfSlabs':
-			return 16;
-		case 'bashing':
-			return 32;
-		default:
-			return 8;
-	}
+    case "walking":
+      return 8;
+    case "climbing":
+      return 8;
+    case "toppingOut":
+      return 8;
+    case "floating":
+      return 8;
+    case "digging":
+      return 8;
+    case "falling":
+      return 4;
+    case "blocking":
+      return 16;
+    case "dyingFalling":
+      return 16;
+    case "exploding":
+      return 16;
+    case "disintegrating":
+      return 16;
+    case "building":
+      return 16;
+    case "runOutOfSlabs":
+      return 16;
+    case "bashing":
+      return 32;
+    case "mining":
+      return 18;
+    default:
+      return 8;
+  }
 }
 
 function nameLemmings(lemmings) {
@@ -760,47 +811,64 @@ function checkIfOnSlab(lemming) {
 }
 
 function moveLemmingInstance(lemming) {
-	if (lemming.state === 'walking') {
-        if (lemming.facing === 'right') {
-			lemming.x += 2;
-		} else if (lemming.facing === 'left') {
-			lemming.x -= 2;
-		}
+	if (lemming.state === "walking") {
+    if (lemming.facing === "right") {
+      lemming.x += 2;
+    } else if (lemming.facing === "left") {
+      lemming.x -= 2;
+    }
 
-		checkIfOnSlab(lemming);
+    checkIfOnSlab(lemming);
 
-		if (lemming.x < 0 || (lemming.x + lemming.width > LEVEL_WIDTH)) {
-			lemming.active = false;
-			return;
-		}
+    if (lemming.x < 0 || lemming.x + lemming.width > LEVEL_WIDTH) {
+      lemming.active = false;
+      return;
+    }
 
-		adjustLemmingHeight(lemming);
-	} else if (lemming.state === 'climbing') {
-		lemming.y -= GRAVITY_SPEED / 8;
-	} else if (lemming.state === 'floating') {
-		lemming.y += GRAVITY_SPEED / 3;
-	} else if (lemming.state === 'toppingOut') {
-		lemming.y += 1;
-	} else if ((lemming.countdownActive && lemming.collisionBox) || lemming.state === 'exploding' || lemming.state === 'booming' || lemming.state === 'disintegrating' || lemming.state === 'blocking' || lemming.state === 'runOutOfSlabs') {
-		lemming.x += 0
-	} else if (lemming.state === 'building') {
-		if (lemming.frameIndex === 15) {
-			if (lemming.facing === 'right') {
-				lemming.x += 5;
-			} else if (lemming.facing === 'left') {
-				lemming.x -= 5;
-			}
-			lemming.y -= 2;
-		}
-	} else if (lemming.state === 'bashing') {
-		if ([1, 3, 11, 13, 15, 17, 19, 21, 29, 31].includes(lemming.frameIndex)) {
-			if (lemming.facing === 'right') {
-				lemming.x += 1.5;
-			} else if (lemming.facing === 'left') {
-				lemming.x -= 1.5;
-			}
-		}
-	}
+    adjustLemmingHeight(lemming);
+  } else if (lemming.state === "climbing") {
+    lemming.y -= GRAVITY_SPEED / 8;
+  } else if (lemming.state === "floating") {
+    lemming.y += GRAVITY_SPEED / 3;
+  } else if (lemming.state === "toppingOut") {
+    lemming.y += 1;
+  } else if (
+    (lemming.countdownActive && lemming.collisionBox) ||
+    lemming.state === "exploding" ||
+    lemming.state === "booming" ||
+    lemming.state === "disintegrating" ||
+    lemming.state === "blocking" ||
+    lemming.state === "runOutOfSlabs"
+  ) {
+    lemming.x += 0;
+  } else if (lemming.state === "building") {
+    if (lemming.frameIndex === 15) {
+      if (lemming.facing === "right") {
+        lemming.x += 5;
+      } else if (lemming.facing === "left") {
+        lemming.x -= 5;
+      }
+      lemming.y -= 2;
+    }
+  } else if (lemming.state === "bashing") {
+    if ([1, 3, 11, 13, 15, 17, 19, 21, 29, 31].includes(lemming.frameIndex)) {
+      if (lemming.facing === "right") {
+        lemming.x += 1.5;
+      } else if (lemming.facing === "left") {
+        lemming.x -= 1.5;
+      }
+    }
+  } else if (lemming.state === "mining") {
+    if (lemming.frameIndex > 9 && lemming.frameIndex <= 17) {
+      if (lemming.facing === "right") {
+        lemming.x += 0.8;
+		lemming.y += 0.40;
+      } else if (lemming.facing === "left") {
+        lemming.x -= 0.8;
+		lemming.y += 0.40;
+      }
+    }
+  }
 
 	const canvasHeight = getElements().canvas.height;
 	if (lemming.y > canvasHeight) {
@@ -967,10 +1035,81 @@ function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex
 	);
 }
 
-function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
-	const frameWidth = spriteFrames[0].w;
-	const frameHeight = spriteFrames[0].h;
+function drawMiningLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
+  let rows;
+  if (facing === "right") {
+    rows = [22, 24];
+  } else {
+    rows = [26, 28];
+  }
 
+  const framesPerRow = 9;
+  const rowIndex = Math.floor(frameIndex / framesPerRow);
+  const colIndex = frameIndex % framesPerRow;
+
+  const bottomRightRow = rows[rowIndex];
+  const bottomRightCol = colIndex * 2 + 1;
+
+  const bottomRightIndex = bottomRightRow * FRAMES_PER_ROW + bottomRightCol;
+  const topLeftIndex = bottomRightIndex - FRAMES_PER_ROW - 1;
+  const topRightIndex = bottomRightIndex - FRAMES_PER_ROW;
+  const bottomLeftIndex = bottomRightIndex - 1;
+  
+  const topLeftFrame = spriteFrames[topLeftIndex];
+  const topRightFrame = spriteFrames[topRightIndex];
+  const bottomLeftFrame = spriteFrames[bottomLeftIndex];
+  const bottomRightFrame = spriteFrames[bottomRightIndex];
+
+  if (!topLeftFrame || !topRightFrame || !bottomLeftFrame || !bottomRightFrame)
+    return;
+
+  ctx.drawImage(
+    spriteSheet,
+    topLeftFrame.x,
+    topLeftFrame.y,
+    topLeftFrame.w,
+    topLeftFrame.h,
+    x - width - cameraX,
+    y - height,
+    width,
+    height
+  );
+  ctx.drawImage(
+    spriteSheet,
+    topRightFrame.x,
+    topRightFrame.y,
+    topRightFrame.w,
+    topRightFrame.h,
+    x - cameraX,
+    y - height,
+    width,
+    height
+  );
+  ctx.drawImage(
+    spriteSheet,
+    bottomLeftFrame.x,
+    bottomLeftFrame.y,
+    bottomLeftFrame.w,
+    bottomLeftFrame.h,
+    x - width - cameraX,
+    y,
+    width,
+    height
+  );
+  ctx.drawImage(
+    spriteSheet,
+    bottomRightFrame.x,
+    bottomRightFrame.y,
+    bottomRightFrame.w,
+    bottomRightFrame.h,
+    x - cameraX,
+    y,
+    width,
+    height
+  );
+}  
+
+function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
 	let row;
 	let rowOffset;
 
@@ -1009,19 +1148,36 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
 				drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex ?? 0, cameraX);
 			} else if (lemmingObject && lemmingObject.state === 'bashing') {
 				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
-			} else {
-				if (lemmingObject && lemmingObject.countdownActive) {
-					drawCountdownMarkerOverLemming(ctx, x, y, width, height, lemmingObject.countdownFrameIndex, cameraX, lemmingObject.state);
-				}
-				const frame = spriteFrames[spriteIndex];
-				ctx.drawImage(
-					spriteSheet,
-					frame.x, frame.y,
-					frame.w, frame.h,
-					x - cameraX, y,
-					width, height
-				);
-			}
+			} else if (lemmingObject && lemmingObject.state === 'bashing') {
+				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
+			} else if (lemmingObject && lemmingObject.state === "mining") {
+				drawMiningLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
+      		} else {
+        if (lemmingObject && lemmingObject.countdownActive) {
+          drawCountdownMarkerOverLemming(
+            ctx,
+            x,
+            y,
+            width,
+            height,
+            lemmingObject.countdownFrameIndex,
+            cameraX,
+            lemmingObject.state
+          );
+        }
+        const frame = spriteFrames[spriteIndex];
+        ctx.drawImage(
+          spriteSheet,
+          frame.x,
+          frame.y,
+          frame.w,
+          frame.h,
+          x - cameraX,
+          y,
+          width,
+          height
+        );
+      }
 		} else {
 			ctx.fillStyle = color;
 			ctx.fillRect(x - cameraX, y, width, height);
@@ -1747,7 +1903,9 @@ function getSpriteRowForLemming(state, facing) {
 	if (state === 'bashing') {
 		return facing === 'right' ? [17, 18] : [19, 20];
 	}
-
+	if (state === "mining") {
+    	return facing === "right" ? [22, 24] : [26, 28];
+    }
 	return [0];
 }
 
@@ -1833,6 +1991,52 @@ export function handleLemmingClick(lemming) {
         return;
     }
 }
+
+function mineBlock(ctx, lemming, x, y, radius) {
+  const offsetX =
+    lemming.facing === "right" ? lemming.width * 0.5 : -lemming.width * 0.5;
+  const offsetY = lemming.height / 2;
+
+  const checkX = x + offsetX;
+  const checkY = y + offsetY;
+
+  const imageData = ctx.getImageData(
+    Math.floor(checkX - radius),
+    Math.floor(checkY - radius),
+    Math.ceil(radius * 2),
+    Math.ceil(radius * 2)
+  );
+  const data = imageData.data;
+  const diameter = Math.ceil(radius * 2);
+
+  let bottomSolidCount = 0;
+  let bottomTotal = 0;
+
+  for (let dy = Math.floor(diameter / 2); dy < diameter; dy++) {
+    for (let dx = 0; dx < diameter; dx++) {
+      const px = dx - radius;
+      const py = dy - radius;
+      if (px * px + py * py <= radius * radius) {
+        const index = (dy * diameter + dx) * 4;
+        const pixel = [data[index], data[index + 1], data[index + 2]];
+        bottomTotal++;
+        if (isSolidPixel(pixel)) bottomSolidCount++;
+      }
+    }
+  }
+
+  const bottomSolidRatio = bottomTotal ? bottomSolidCount / bottomTotal : 0;
+  if (bottomSolidRatio < 0.05) {
+    lemming.reachedEndOfMiningSquare++;
+  }
+
+  ctx.fillStyle = "rgb(0,0,0)";
+  ctx.beginPath();
+  ctx.arc(checkX, checkY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  updateCollisionPixels();
+}  
 
 function bashBlock(ctx, lemming, x, y, radius) {
 	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
