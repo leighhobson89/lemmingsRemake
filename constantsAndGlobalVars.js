@@ -161,7 +161,7 @@ export const lemmingLevelData = {
             "builderTool": 15,
             "basherTool": 10,
             "minerTool": 10,
-            "diggerTool": 1
+            "diggerTool": 15
         },
         facing: 'right'
     }
@@ -209,29 +209,31 @@ export const lemmingObject = {
     active: false,
     name: null,
     reachedEndOfBashingSquare: 0,
-    reachedEndOfMiningSquare: 0
+    reachedEndOfMiningSquare: 0,
+    reachedEndOfDiggingSquare: 0,
 };
 
 export function getNewLemmingObject() {
     return {
-        x: 100,
-        y: 100,
-        width: LEMMING_WIDTH,
-        height: LEMMING_HEIGHT,
-        dx: getInitialSpeedLemming(),
-        dy: getInitialSpeedLemming(),
-        facing: 'right',
-        gravity: true,
-        tool: null,
-        state: 'falling',
-        fallenDistance: 0,
-        dieUponImpact: false,
-        collisionBox: false,
-        countdownActive: false,
-        active: false,
-        name: null,
-        reachedEndOfBashingSquare: 0,
-        reachedEndOfMiningSquare: 0
+      x: 100,
+      y: 100,
+      width: LEMMING_WIDTH,
+      height: LEMMING_HEIGHT,
+      dx: getInitialSpeedLemming(),
+      dy: getInitialSpeedLemming(),
+      facing: "right",
+      gravity: true,
+      tool: null,
+      state: "falling",
+      fallenDistance: 0,
+      dieUponImpact: false,
+      collisionBox: false,
+      countdownActive: false,
+      active: false,
+      name: null,
+      reachedEndOfBashingSquare: 0,
+      reachedEndOfMiningSquare: 0,
+      reachedEndOfDiggingSquare: 0,
     };
 }
 

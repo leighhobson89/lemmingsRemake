@@ -289,6 +289,9 @@ export function gameLoop(time = 0) {
 					} else if (lemming.state === "runOutOfSlabs") {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateRunOutOfSlabsAnimation(lemming, deltaTime, frameCount);
+					} else if (lemming.state === "digging") {
+						const frameCount = getFrameCountForState(lemming.state);
+						updateDiggingAnimation(lemming, deltaTime, frameCount);
 					} else {
 						const frameCount = getFrameCountForState(lemming.state);
 						updateLemmingAnimation(lemming, deltaTime, frameCount);
@@ -397,6 +400,45 @@ function updateMiningAnimation(lemming, deltaTime) {
     }
   }
 }	
+
+function updateDiggingAnimation(lemming, deltaTime) {
+  if (lemming.frameTime === undefined) {
+    lemming.frameTime = 0;
+    lemming.frameIndex = 0;
+  }
+
+  const ANIMATION_SPEED = 40;
+  const frameCount = 16;
+
+  lemming.frameTime += deltaTime;
+
+  if (
+    lemming.frameTime >=
+    ANIMATION_SPEED / (getIsFastForward() ? FAST_FORWARD_AMOUNT : 1)
+  ) {
+    lemming.frameTime = 0;
+    lemming.frameIndex = (lemming.frameIndex + 1) % frameCount;
+
+    if (lemming.frameIndex >= 0 && lemming.frameIndex <= 8) {
+      const canvas = getCollisionCanvas();
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+
+      const centerX = lemming.x + lemming.width / 2;
+      const centerY = lemming.y + lemming.height;
+
+      digBlock(ctx, lemming, centerX, centerY);
+    }
+
+	if (lemming.reachedEndOfDiggingSquare > 4) {
+		lemming.lastState = lemming.state;
+		lemming.state = "falling";
+		lemming.frameIndex = 0;
+		lemming.reachedEndOfDiggingSquare = 0;
+	}
+  }
+}
+
 
 function updateBashingAnimation(lemming, deltaTime) {
 	if (lemming.frameTime === undefined) {
@@ -696,6 +738,8 @@ function getFrameCountForState(state) {
       return 16;
     case "building":
       return 16;
+	case "digging":
+		return 16;
     case "runOutOfSlabs":
       return 16;
     case "bashing":
@@ -860,12 +904,14 @@ function moveLemmingInstance(lemming) {
     if (lemming.frameIndex > 0 && lemming.frameIndex <= 8) {
       if (lemming.facing === "right") {
         lemming.x += 0.8;
-		lemming.y += 0.40;
+        lemming.y += 0.4;
       } else if (lemming.facing === "left") {
         lemming.x -= 0.8;
-		lemming.y += 0.40;
+        lemming.y += 0.4;
       }
     }
+  } else if (lemming.state === "digging") {
+	lemming.y += 0.3;
   }
 
 	const canvasHeight = getElements().canvas.height;
@@ -1904,6 +1950,9 @@ function getSpriteRowForLemming(state, facing) {
 	if (state === "mining") {
     	return facing === "right" ? [22, 24] : [26, 28];
     }
+	if (state === "digging") {
+    	return [29];
+  	}
 	return [0];
 }
 
@@ -2048,7 +2097,47 @@ function mineBlock(ctx, lemming, x, y, radius) {
 }
   
   
+function digBlock(ctx, lemming, centerX, centerY) {
+  const digWidth = lemming.width * 1.2;
+  const digHeight = 6;
+  const checkHeight = 4;
 
+  const startX = Math.floor(centerX - digWidth / 2);
+  const digY = Math.floor(centerY - 6);
+  const checkY = digY + digHeight - 2;
+
+  ctx.fillStyle = "rgb(0, 0, 0)";
+  ctx.fillRect(startX, digY, digWidth, digHeight);
+
+  const imageData = ctx.getImageData(
+    startX,
+    checkY,
+    Math.ceil(digWidth),
+    checkHeight
+  );
+  const data = imageData.data;
+
+  let totalPixels = 0;
+  let blackPixels = 0;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    totalPixels++;
+    if (r === 0 && g === 0 && b === 0) {
+      blackPixels++;
+    }
+  }
+
+  const blackRatio = totalPixels > 0 ? blackPixels / totalPixels : 0;
+
+  if (blackRatio >= 0.95) {
+    lemming.reachedEndOfDiggingSquare++;
+  }
+
+  updateCollisionPixels();
+} 
 
 function bashBlock(ctx, lemming, x, y, radius) {
 	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
