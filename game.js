@@ -102,6 +102,7 @@ const detectedObjects = {
 //--------------------------------------------------------------------------------------------------------
 let activeExplosionParticles = 0;
 let solidGroundMap = null;
+let nonSolidOverlayMap = null;
 let spawnAnimationFrame = 0;
 let spawnAnimationTimer = 0;
 let exitAnimationFrame = 0;
@@ -232,7 +233,6 @@ export function gameLoop(time = 0) {
 				visualCanvas.height
 			);
 		} else if (getCollisionCanvas()) {
-			// In play mode, draw only the collision canvas
 			const cameraX = getCameraX();
 			ctx.drawImage(
 				getCollisionCanvas(),
@@ -252,6 +252,9 @@ export function gameLoop(time = 0) {
 		if (gameState === getGameVisibleActive()) {
 			drawSpawnAnimation(ctx, deltaTime, levelData);
 			drawExitAnimation(ctx, deltaTime, detectedObjects.lemmingExits, levelData);
+			if (getDebugMode()) {
+				drawNonSolidOverlayDebug(ctx);
+			}
 			if (getLemmingsReleased() < getNumberOfLemmingsForCurrentLevel()) {
 				releaseLemmings(deltaTime);
 			}
@@ -799,7 +802,7 @@ function initializeLemmings(lemmingsQuantity, startPosition, facing) {
 
 		newLemming.x = startPosition.x;
 		newLemming.y = startPosition.y;
-    newLemming.facing = facing;
+    	newLemming.facing = facing;
 
 		pushNewLemmingToLemmingsObjects(newLemming);
 	}
@@ -1407,11 +1410,35 @@ export function drawExitFrame(ctx, theme, frameIndex, destX, destY, scale = 4) {
     spriteWidth,
     spriteHeight,
     destX - spriteWidth - 15,
-    destY - 40,
+    destY,
     spriteWidth * scale,
     spriteHeight * scale
   );
+
+  const scaledWidth = spriteWidth * scale;
+  const scaledHeight = spriteHeight * scale;
+
+  const screenDrawX = Math.round(destX - spriteWidth - 15);
+  const drawY = Math.round(destY - 40);
+  const worldDrawX = screenDrawX + getCameraX();
+
+  for (let y = 0; y < scaledHeight; y++) {
+    for (let x = 0; x < scaledWidth; x++) {
+      const worldX = worldDrawX + x;
+      const worldY = drawY + y;
+
+      if (
+        worldX >= 0 &&
+        worldX < getCollisionCanvas().width &&
+        worldY >= 0 &&
+        worldY < getCollisionCanvas().height
+      ) {
+        nonSolidOverlayMap[worldY * getCollisionCanvas().width + worldX] = 1;
+      }
+    }
+  }
 }
+
 
 function rectsOverlap(r1, r2) {
 	return !(r2.x > r1.x + r1.width ||
@@ -1545,29 +1572,57 @@ function buildLemmingGrid(lemmings) {
 	return grid;
 }
 
-function updateSolidGroundMap() {
-    const width = getCollisionCanvas().width;
-    const height = getCollisionCanvas().height;
-    const data = getCollisionPixels().data;
-    solidGroundMap = new Uint8Array(width * height);
+export function drawNonSolidOverlayDebug(ctx) {
+  if (!nonSolidOverlayMap) return;
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
+  const width = getCollisionCanvas().width;
+  const height = getCollisionCanvas().height;
+  const cameraX = getCameraX();
 
-            if (r === 253 && g === 253 && b === 253) {
-                solidGroundMap[y * width + x] = 0;
-            } else {
-                solidGroundMap[y * width + x] =
-                    (r > PIXEL_THRESHOLD ||
-                     g > PIXEL_THRESHOLD ||
-                     b > PIXEL_THRESHOLD) ? 1 : 0;
-            }
-        }
+  const pixel = ctx.createImageData(1, 1);
+  pixel.data[0] = 0;
+  pixel.data[1] = 255;
+  pixel.data[2] = 0;
+  pixel.data[3] = 255;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = y * width + x;
+      if (nonSolidOverlayMap[index] === 1) {
+        ctx.putImageData(pixel, x - cameraX, y);
+      }
     }
+  }
+}
+
+function updateSolidGroundMap() {
+  const width = getCollisionCanvas().width;
+  const height = getCollisionCanvas().height;
+  const data = getCollisionPixels().data;
+
+  solidGroundMap = new Uint8Array(width * height);
+  nonSolidOverlayMap = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const flatIndex = y * width + x;
+
+      if (nonSolidOverlayMap[flatIndex]) {
+        solidGroundMap[flatIndex] = 0;
+        continue;
+      }
+
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+
+      solidGroundMap[flatIndex] =
+        (r === 253 && g === 253 && b === 253)
+          ? 0
+          : (r > PIXEL_THRESHOLD || g > PIXEL_THRESHOLD || b > PIXEL_THRESHOLD) ? 1 : 0;
+    }
+  }
 }
 
 function isOnGround(lemming) {
@@ -1888,7 +1943,11 @@ function floodFillCollisionObjectsByColor(collisionImage) {
 	return detectedObjects;
 }
 
-function isSolidPixel(pixel) {
+function isSolidPixel(x, y, pixel) {
+    if (nonSolidOverlayMap && nonSolidOverlayMap[y * getCollisionCanvas().width + x] === 1) {
+        return false;
+    }
+
     if (
         (typeof BUILDER_SLAB_COLOR !== 'undefined' &&
          pixel[0] === BUILDER_SLAB_COLOR.r &&
@@ -1897,8 +1956,10 @@ function isSolidPixel(pixel) {
     ) {
         return false;
     }
+
     return (pixel[0] > PIXEL_THRESHOLD || pixel[1] > PIXEL_THRESHOLD || pixel[2] > PIXEL_THRESHOLD);
 }
+
 
 function turnLemmingIfCollidesWithWall(lemming) {
     const height = lemming.height;
@@ -1913,16 +1974,16 @@ function turnLemmingIfCollidesWithWall(lemming) {
     let solidCount = 0;
     let highestSolidOffset = null;
 
-    for (let offset = 0; offset < checkHeight; offset++) {
-        const sampleY = footY - offset;
-        const pixel = getPixelColor(footX, sampleY);
-        if (isSolidPixel(pixel)) {
-            solidCount++;
-            if (highestSolidOffset === null) {
-                highestSolidOffset = offset;
-            }
-        }
-    }
+	for (let offset = 0; offset < checkHeight; offset++) {
+		const sampleY = footY - offset;
+		const pixel = getPixelColor(footX, sampleY);
+		if (isSolidPixel(footX, sampleY, pixel)) {
+			solidCount++;
+			if (highestSolidOffset === null) {
+				highestSolidOffset = offset;
+			}
+		}
+	}
 
     if (solidCount >= checkHeight / 2) {
         lemming.facing = (lemming.facing === 'right') ? 'left' : 'right';
@@ -1950,7 +2011,7 @@ function adjustLemmingHeight(lemming) {
     const pixelAbove = getPixelColor(footX, Math.floor(lemming.y) - 1);
     if (
         lemming.turnCooldown === 0 &&
-        isSolidPixel(pixelAbove)
+        isSolidPixel(footX, Math.floor(lemming.y) - 1, pixelAbove)
     ) {
         if (lemming.tool === 'climberTool' || lemming.tool === 'athlete') {
             lemming.lastState = lemming.state;
@@ -1971,13 +2032,13 @@ function adjustLemmingHeight(lemming) {
     for (let i = 0; i < checkHeight; i++) {
         const sampleY = bottomY - 1 - i;
         const pixel = getPixelColor(footX, sampleY);
-        if (isSolidPixel(pixel)) solidPixels++;
+        if (isSolidPixel(footX, sampleY, pixel)) solidPixels++;
     }
 
     for (let i = checkHeight; i < height; i++) {
         const sampleY = bottomY - 1 - i;
         const pixel = getPixelColor(footX, sampleY);
-        if (isSolidPixel(pixel)) solidAboveCount++;
+        if (isSolidPixel(footX, sampleY, pixel)) solidAboveCount++;
     }
 
     if (solidPixels > 0) {
@@ -2216,18 +2277,22 @@ function mineBlock(ctx, lemming, x, y, radius) {
   let bottomTotal = 0;
   let bottomSolidCount = 0;
 
-  for (let dy = Math.floor(diameter / 2); dy < diameter; dy++) {
-    for (let dx = 0; dx < diameter; dx++) {
-      const px = dx - radius;
-      const py = dy - radius;
-      if (px * px + py * py <= radius * radius) {
-        const index = (dy * diameter + dx) * 4;
-        const pixel = [data[index], data[index + 1], data[index + 2]];
-        bottomTotal++;
-        if (isSolidPixel(pixel)) bottomSolidCount++;
-      }
-    }
-  }
+	for (let dy = Math.floor(diameter / 2); dy < diameter; dy++) {
+	for (let dx = 0; dx < diameter; dx++) {
+		const px = dx - radius;
+		const py = dy - radius;
+		if (px * px + py * py <= radius * radius) {
+		const index = (dy * diameter + dx) * 4;
+		const pixel = [data[index], data[index + 1], data[index + 2]];
+
+		const globalX = Math.floor(checkX - radius) + dx;
+		const globalY = Math.floor(checkYBelow - radius) + dy;
+
+		bottomTotal++;
+		if (isSolidPixel(globalX, globalY, pixel)) bottomSolidCount++;
+		}
+	}
+	}
 
   const bottomSolidRatio = bottomTotal ? bottomSolidCount / bottomTotal : 0;
   if (bottomSolidRatio < 0.8) {
@@ -2298,17 +2363,20 @@ function digBlock(ctx, lemming, centerX, centerY) {
 function bashBlock(ctx, lemming, x, y, radius) {
 	const checkOffsetX = x + (lemming.facing === 'right' ? lemming.width : -lemming.width);
 
+	const startX = Math.floor(checkOffsetX - radius);
+	const startY = Math.floor(y - radius);
+
 	const imageData = ctx.getImageData(
-		Math.floor(checkOffsetX - radius),
-		Math.floor(y - radius),
+		startX,
+		startY,
 		Math.ceil(radius * 2),
 		Math.ceil(radius * 2)
 	);
 	const data = imageData.data;
+	const diameter = Math.ceil(radius * 2);
+
 	let totalPixels = 0;
 	let solidPixels = 0;
-
-	const diameter = Math.ceil(radius * 2);
 
 	for (let dy = 0; dy < diameter; dy++) {
 		for (let dx = 0; dx < diameter; dx++) {
@@ -2317,8 +2385,12 @@ function bashBlock(ctx, lemming, x, y, radius) {
 			if (px * px + py * py <= radius * radius) {
 				const index = (dy * diameter + dx) * 4;
 				const pixel = [data[index], data[index + 1], data[index + 2]];
+
+				const globalX = startX + dx;
+				const globalY = startY + dy;
+
 				totalPixels++;
-				if (isSolidPixel(pixel)) solidPixels++;
+				if (isSolidPixel(globalX, globalY, pixel)) solidPixels++;
 			}
 		}
 	}
@@ -2328,7 +2400,7 @@ function bashBlock(ctx, lemming, x, y, radius) {
 	ctx.arc(x, y, radius, 0, Math.PI * 2);
 	ctx.fill();
 
-	const solidRatio = solidPixels / totalPixels;
+	const solidRatio = totalPixels ? solidPixels / totalPixels : 0;
 	if (solidRatio < 0.04) {
 		lemming.reachedEndOfBashingSquare++;
 	}
@@ -2337,29 +2409,31 @@ function bashBlock(ctx, lemming, x, y, radius) {
 	let edgeTotal = 0;
 
 	const rowsToCheck = 4;
+	const halfStart = Math.floor(diameter * 0.25);
+	const halfEnd = Math.ceil(diameter * 0.75);
 
 	for (let row = 0; row < rowsToCheck; row++) {
-		const dy = diameter - 1 - row; 
-
-		const halfStart = Math.floor(diameter * 0.25);
-		const halfEnd = Math.ceil(diameter * 0.75);
+		const dy = diameter - 1 - row;
 
 		for (let dx = halfStart; dx < halfEnd; dx++) {
 			const index = (dy * diameter + dx) * 4;
 			const pixel = [data[index], data[index + 1], data[index + 2]];
+
+			const globalX = startX + dx;
+			const globalY = startY + dy;
+
 			edgeTotal++;
-			if (isSolidPixel(pixel)) edgeSolidCount++;
+			if (isSolidPixel(globalX, globalY, pixel)) edgeSolidCount++;
 		}
 	}
 
-	const edgeSolidRatio = edgeSolidCount / edgeTotal;
+	const edgeSolidRatio = edgeTotal ? edgeSolidCount / edgeTotal : 0;
 	if (edgeSolidRatio < 0.5) {
 		lemming.reachedEndOfBashingSquare++;
 	}
 
 	updateCollisionPixels();
 }
-
 
 function buildSlab(lemming) {
     const collisionCanvas = getCollisionCanvas();
@@ -2381,36 +2455,55 @@ function buildSlab(lemming) {
         secondSlabX = firstSlabX - slabWidth;
     }
 
+    const drawSlab = (startX, color) => {
+        ctx.fillStyle = color;
+        for (let dx = 0; dx < slabWidth; dx++) {
+            for (let dy = 0; dy < slabHeight; dy++) {
+                const x = startX + dx;
+                const y = slabY + dy;
+                const pixel = getPixelColor(x, y);
+                if (!isSolidPixel(x, y, pixel)) {
+                    ctx.fillRect(x, y, 1, 1);
+                }
+
+                if (nonSolidOverlayMap) {
+                    const canvasWidth = getCollisionCanvas().width;
+                    const index = y * canvasWidth + x;
+                    nonSolidOverlayMap[index] = 0;
+                }
+            }
+        }
+    };
+
     if ((lemming.buildingSlabs || 0) < 4) {
-        ctx.fillStyle = 'rgb(255,255,255)';
-        ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
-        ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
+        drawSlab(firstSlabX, 'rgb(255,255,255)');
+        drawSlab(secondSlabX, 'rgb(255,255,255)');
     } else {
-        ctx.fillStyle = 'rgb(255,255,255)';
-        ctx.fillRect(firstSlabX, slabY, slabWidth, slabHeight);
-        ctx.fillStyle = BUILDER_SLAB_COLOR;
-        ctx.fillRect(secondSlabX, slabY, slabWidth, slabHeight);
+        drawSlab(firstSlabX, 'rgb(255,255,255)');
+        drawSlab(secondSlabX, BUILDER_SLAB_COLOR);
     }
 
-	const extremeEdgeX = lemming.facing === 'right'
-    ? secondSlabX + slabWidth - 1
-    : secondSlabX - slabWidth + 1;
+    // Check extreme edge to determine if it's time to stop building
+    const extremeEdgeX = lemming.facing === 'right'
+        ? secondSlabX + slabWidth - 1
+        : secondSlabX - slabWidth + 1;
 
-	let allNotBlack = false;
-	for (let dy = 0; dy < 3; dy++) {
-		const pixel = getPixelColor(extremeEdgeX, slabY + dy);
-		if (pixel[0] > PIXEL_THRESHOLD && pixel[1] > PIXEL_THRESHOLD && pixel[2] > PIXEL_THRESHOLD && lemming.buildingSlabs > 2) {
-			allNotBlack = true;
-			break;
-		}
-	}
+    let allNotBlack = false;
+    for (let dy = 0; dy < slabHeight; dy++) {
+        const pixel = getPixelColor(extremeEdgeX, slabY + dy);
+        if (isSolidPixel(extremeEdgeX, slabY + dy, pixel) && lemming.buildingSlabs > 2) {
+            allNotBlack = true;
+            break;
+        }
+    }
 
-	if (allNotBlack) {
-		lemming.state = 'walking';
-	}
+    if (allNotBlack) {
+        lemming.state = 'walking';
+    }
 
-	updateCollisionPixels();
+    updateCollisionPixels();
 }
+
 
 function explodeTerrain(lemming) {
 	const collisionCanvas = getCollisionCanvas();
