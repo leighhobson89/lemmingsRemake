@@ -207,8 +207,6 @@ export function gameLoop(time = 0) {
 			);
 		}
 
-		drawSpawnAnimation(ctx, deltaTime, levelData);
-
 		if (getDebugMode() && visualCanvas) {
 			// In debug mode, draw both: collision first, then visual overlay
 			const cameraX = getCameraX();
@@ -249,6 +247,7 @@ export function gameLoop(time = 0) {
 		}
 
 		if (gameState === getGameVisibleActive()) {
+			drawSpawnAnimation(ctx, deltaTime, levelData);
 			if (getLemmingsReleased() < getNumberOfLemmingsForCurrentLevel()) {
 				releaseLemmings(deltaTime);
 			}
@@ -1310,39 +1309,40 @@ function drawLemmingInstances(ctx, x, y, width, height, type, color, spriteIndex
 }
 
 function drawSpawnAnimation(ctx, deltaTime, levelData) {
-	const theme = levelData.theme;
-	const lemmingStart = getLemmingObject();
+  const theme = levelData.theme;
+  const lemmingStart = getLemmingObject();
+  const cameraX = getCameraX();
 
-	if (!theme || !lemmingStart) return;
+  if (!theme || !lemmingStart) return;
 
-	const spawnX = lemmingStart.x;
-	const spawnY = lemmingStart.y;
+  const spawnX = lemmingStart.x - cameraX;
+  const spawnY = lemmingStart.y;
 
-	if (!getLevelStarted()) {
-		drawSpawnFrame(ctx, theme, 0, spawnX, spawnY);
-		return;
-	}
+  if (!getLevelStarted()) {
+    drawSpawnFrame(ctx, theme, 0, spawnX, spawnY);
+    return;
+  }
 
-	if (!getSpawnOpenedForLevel()) {
-		spawnAnimationTimer += deltaTime;
+  if (!getSpawnOpenedForLevel()) {
+    spawnAnimationTimer += deltaTime;
 
-		if (spawnAnimationTimer > 100) {
-			spawnAnimationFrame++;
-			spawnAnimationTimer = 0;
-		}
+    if (spawnAnimationTimer > 50) {
+      spawnAnimationFrame++;
+      spawnAnimationTimer = 0;
+    }
 
-		if (spawnAnimationFrame >= 9) {
-			setSpawnOpenedForLevel(true);
-		} else {
-			drawSpawnFrame(ctx, theme, spawnAnimationFrame, spawnX, spawnY);
-			return;
-		}
-	}
+    if (spawnAnimationFrame >= 9) {
+      setSpawnOpenedForLevel(true);
+    } else {
+      drawSpawnFrame(ctx, theme, spawnAnimationFrame, spawnX, spawnY);
+      return;
+    }
+  }
 
-	drawSpawnFrame(ctx, theme, 9, spawnX, spawnY);
+  drawSpawnFrame(ctx, theme, 9, spawnX, spawnY);
 }
 
-export function drawSpawnFrame(ctx, theme, frameIndex, destX, destY, scale = 1) {
+export function drawSpawnFrame(ctx, theme, frameIndex, destX, destY, scale = 2) {
   const sheet = spriteSheets['spawns'];
   const themeData = SPAWN_THEMES[theme];
   if (!sheet || !themeData) return;
@@ -1358,8 +1358,8 @@ export function drawSpawnFrame(ctx, theme, frameIndex, destX, destY, scale = 1) 
     sy,
     spriteWidth,
     spriteHeight,
-    destX,
-    destY,
+    destX - spriteWidth + 10,
+    destY - 30,
     spriteWidth * scale,
     spriteHeight * scale
   );

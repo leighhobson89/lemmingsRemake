@@ -287,7 +287,7 @@ export const lemmingLevelData = {
             "diggerTool": 15
         },
         facing: 'right',
-        theme: 'desert'
+        theme: 'classic'
     }
 }
 
@@ -807,5 +807,5 @@ export function setSpawnOpenedForLevel(value) {
 }  
 
 export function getSpawnOpenedForLevel() {
-  return spawnOpenedForLevel = value;
+  return spawnOpenedForLevel;
 }  

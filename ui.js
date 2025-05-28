@@ -1,4 +1,5 @@
 import { 
+    setLevelStarted,
     setLastPaintClickLocation,
     getLastPaintClickLocation,
     setBrushRadius,
@@ -344,6 +345,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         setBeginGameStatus(false);
       }
       setGameState(getGameVisibleActive());
+
+      setTimeout(() => {
+        setLevelStarted(true);
+      }, 1000);
     } else if (gameState === getGameVisibleActive()) {
       setGameState(getGameVisiblePaused());
     }
