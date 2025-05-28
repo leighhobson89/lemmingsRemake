@@ -2,6 +2,10 @@ import {
 	localize
 } from './localization.js';
 import {
+	SPAWN_THEMES,
+	getLevelStarted,
+	getSpawnOpenedForLevel,
+	setSpawnOpenedForLevel,
 	spriteFramesMap,
 	spriteSheets,
 	BUILDER_SLAB_COLOR,
@@ -23,7 +27,7 @@ import {
 	setLevelToolsRemaining,
 	getCurrentTool,
 	RELEASE_RATE_BALANCER,
-	FRAMES_PER_ROW,
+	LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW,
 	setNumberOfLemmingsForCurrentLevel,
 	getNumberOfLemmingsForCurrentLevel,
 	setLemmingsRescued,
@@ -97,6 +101,8 @@ const detectedObjects = {
 //--------------------------------------------------------------------------------------------------------
 let activeExplosionParticles = 0;
 let solidGroundMap = null;
+let spawnAnimationFrame = 0;
+let spawnAnimationTimer = 0;
 
 export async function startGame() {
 	const canvas = getElements().canvas;
@@ -168,6 +174,8 @@ export function gameLoop(time = 0) {
 	lastFrameTime = time;
 
 	if (gameState === getGameVisibleActive() || gameState === getGameVisiblePaused()) {
+		const levelName = 'level1'; //change to be dynamic when adding more levels
+		const levelData = getLemmingLevelData(levelName)
 		checkCollisionPixelsChanged();
 		ctx.clearRect(0, 0, getElements().canvas.width, getElements().canvas.height);
 
@@ -198,6 +206,8 @@ export function gameLoop(time = 0) {
 				getCollisionCanvas().height
 			);
 		}
+
+		drawSpawnAnimation(ctx, deltaTime, levelData);
 
 		if (getDebugMode() && visualCanvas) {
 			// In debug mode, draw both: collision first, then visual overlay
@@ -318,9 +328,9 @@ export function gameLoop(time = 0) {
 				}
 				let spriteIndex;
 				if (lemming.state !== 'mining') {
-					spriteIndex = rowNumber * FRAMES_PER_ROW + col;
+					spriteIndex = rowNumber * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW + col;
 				} else {
-					spriteIndex = rowNumber * FRAMES_PER_ROW + (col * 2);
+					spriteIndex = rowNumber * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW + (col * 2);
 				}
 
 				drawLemmingInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
@@ -1059,7 +1069,7 @@ function drawBoomingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
 			const tileCol = frame[row][col];
 			if (tileCol === null) continue;
 
-			const spriteIndex = (row * FRAMES_PER_ROW) + tileCol;
+			const spriteIndex = (row * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW) + tileCol;
 			const sprite = frames[spriteIndex];
 			if (!sprite) continue;
 
@@ -1089,7 +1099,7 @@ function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex
 	const col = getCountdownAreaFrames()[countdownIndex];
 	const row = 4;
 
-	const spriteIndex = row * FRAMES_PER_ROW + col;
+	const spriteIndex = row * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW + col;
 	const sprite = frames[spriteIndex];
 	if (!sprite) return;
 
@@ -1127,9 +1137,9 @@ function drawMiningLemming(ctx, x, y, width, height, frameIndex, facing, cameraX
 	const bottomRightRow = rows[rowIndex];
 	const bottomRightCol = colIndex * 2 + 1;
 
-	const bottomRightIndex = bottomRightRow * FRAMES_PER_ROW + bottomRightCol;
-	const topLeftIndex = bottomRightIndex - FRAMES_PER_ROW - 1;
-	const topRightIndex = bottomRightIndex - FRAMES_PER_ROW;
+	const bottomRightIndex = bottomRightRow * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW + bottomRightCol;
+	const topLeftIndex = bottomRightIndex - LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW - 1;
+	const topRightIndex = bottomRightIndex - LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW;
 	const bottomLeftIndex = bottomRightIndex - 1;
 
 	const topLeftFrame = frames[topLeftIndex];
@@ -1205,7 +1215,7 @@ function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, camera
 		rowOffset = frameIndex % 16;
 	}
 
-	const spriteIndex = row * FRAMES_PER_ROW + rowOffset;
+	const spriteIndex = row * LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW + rowOffset;
 	const frame = frames[spriteIndex];
 
 	if (!frame) return;
@@ -1299,6 +1309,61 @@ function drawLemmingInstances(ctx, x, y, width, height, type, color, spriteIndex
 	}
 }
 
+function drawSpawnAnimation(ctx, deltaTime, levelData) {
+	const theme = levelData.theme;
+	const lemmingStart = getLemmingObject();
+
+	if (!theme || !lemmingStart) return;
+
+	const spawnX = lemmingStart.x;
+	const spawnY = lemmingStart.y;
+
+	if (!getLevelStarted()) {
+		drawSpawnFrame(ctx, theme, 0, spawnX, spawnY);
+		return;
+	}
+
+	if (!getSpawnOpenedForLevel()) {
+		spawnAnimationTimer += deltaTime;
+
+		if (spawnAnimationTimer > 100) {
+			spawnAnimationFrame++;
+			spawnAnimationTimer = 0;
+		}
+
+		if (spawnAnimationFrame >= 9) {
+			setSpawnOpenedForLevel(true);
+		} else {
+			drawSpawnFrame(ctx, theme, spawnAnimationFrame, spawnX, spawnY);
+			return;
+		}
+	}
+
+	drawSpawnFrame(ctx, theme, 9, spawnX, spawnY);
+}
+
+export function drawSpawnFrame(ctx, theme, frameIndex, destX, destY, scale = 1) {
+  const sheet = spriteSheets['spawns'];
+  const themeData = SPAWN_THEMES[theme];
+  if (!sheet || !themeData) return;
+
+  const { column, spriteWidth, spriteHeight, horizontalGap } = themeData;
+
+  const sx = column * (spriteWidth + horizontalGap);
+  const sy = frameIndex * spriteHeight;
+
+  ctx.drawImage(
+    sheet,
+    sx,
+    sy,
+    spriteWidth,
+    spriteHeight,
+    destX,
+    destY,
+    spriteWidth * scale,
+    spriteHeight * scale
+  );
+}
 
 function rectsOverlap(r1, r2) {
 	return !(r2.x > r1.x + r1.width ||

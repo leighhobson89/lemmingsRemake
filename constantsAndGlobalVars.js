@@ -33,6 +33,7 @@ export const CLICK_THRESHOLD = 800;
 export const SCROLL_SPEED = 10;
 export const SCROLL_EDGE_THRESHOLD = 50;
 export const PIXEL_THRESHOLD = 10;
+export const RELEASE_RATE_BALANCER = 5;
 export const LEVEL_WIDTH = 3000;
 export const MENU_STATE = 'menuState';
 export const GAME_VISIBLE_PAUSED = 'gameVisiblePaused';
@@ -88,18 +89,155 @@ export const boomingAreaFrames = [
         [null, 18, null]
     ]
 ];
+
+export const SPAWN_SPRITE_WIDTH = 82;
+export const SPAWN_SPRITE_HEIGHT = 50;
+export const SPAWNS_SPRITE_SHEET_WIDTH = 600;
+export const SPAWNS_SPRITE_SHEET_HEIGHT = 600;
+export const SPAWNS_SPRITE_SHEET_COLUMNS = Math.floor(SPAWNS_SPRITE_SHEET_WIDTH / (SPAWN_SPRITE_WIDTH + 4));
+export const SPAWNS_SPRITE_SHEET_FRAMES_PER_COLUMN = 10;
+
+export const SPAWN_THEMES = {
+  desert: {
+    column: 0,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  ocean: {
+    column: 1,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  industrial: {
+    column: 2,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  forest: {
+    column: 3,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  candy: {
+    column: 4,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  autumn: {
+    column: 5,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+  classic: {
+    column: 6,
+    framesPerColumn: 10,
+    spriteWidth: SPAWN_SPRITE_WIDTH,
+    spriteHeight: SPAWN_SPRITE_HEIGHT,
+    horizontalGap: 4,
+  },
+};
+
 export const spriteSheets = {};
 export const spriteFramesMap = {};
 export const countdownAreaFrames = [8, 9, 10, 11, 12];
-export const SPRITE_WIDTH = 8;
-export const SPRITE_HEIGHT = 10;
-export const SHEET_WIDTH = 160;
-export const SHEET_HEIGHT = 400;
-export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_WIDTH;
-export const RELEASE_RATE_BALANCER = 5;
+export const LEMMING_SPRITE_WIDTH = 8;
+export const LEMMING_SPRITE_HEIGHT = 10;
+export const LEMMINGS_SPRITE_SHEET_WIDTH = 160;
+export const LEMMINGS_SPRITE_SHEET_HEIGHT = 400;
+export const LEMMINGS_SPRITE_SHEET_FRAMES_PER_ROW = LEMMINGS_SPRITE_SHEET_WIDTH / LEMMING_SPRITE_WIDTH;
 
 loadSpriteSheet('lemmings', './assets/sprites/spriteSheet.png');
-loadSpriteSheet('terrain', './assets/sprites/terrainSprites.png');
+loadSpriteSheet('spawns', './assets/sprites/spawnsSprites.png',
+  SPAWN_SPRITE_WIDTH,
+  SPAWN_SPRITE_HEIGHT,
+  SPAWNS_SPRITE_SHEET_WIDTH,
+  SPAWNS_SPRITE_SHEET_HEIGHT,
+  {
+    horizontalGap: 4,
+    columns: Object.keys(SPAWN_THEMES).length,
+    framesPerColumn: 10,
+    order: 'column',
+  }
+);
+
+export function loadSpriteSheet(
+  id,
+  src,
+  spriteWidth = LEMMING_SPRITE_WIDTH,
+  spriteHeight = LEMMING_SPRITE_HEIGHT,
+  sheetWidth = LEMMINGS_SPRITE_SHEET_WIDTH,
+  sheetHeight = LEMMINGS_SPRITE_SHEET_HEIGHT,
+  options = {}
+) {
+  const {
+    horizontalGap = 0,
+    framesPerColumn = Math.floor(sheetHeight / spriteHeight),
+    columns = Math.floor(sheetWidth / spriteWidth),
+    order = 'row',
+  } = options;
+
+  const img = new Image();
+  img.src = src;
+  spriteSheets[id] = img;
+
+  img.onload = () => {
+    const frames = [];
+
+    if (order === 'row') {
+      for (let row = 0; row < framesPerColumn; row++) {
+        for (let col = 0; col < columns; col++) {
+          const x = col * (spriteWidth + horizontalGap);
+          const y = row * spriteHeight;
+
+          if (x + spriteWidth <= sheetWidth && y + spriteHeight <= sheetHeight) {
+            frames.push({ x, y, w: spriteWidth, h: spriteHeight, col, row });
+          }
+        }
+      }
+    } else if (order === 'column') {
+      for (let col = 0; col < columns; col++) {
+        for (let row = 0; row < framesPerColumn; row++) {
+          const x = col * (spriteWidth + horizontalGap);
+          const y = row * spriteHeight;
+
+          if (x + spriteWidth <= sheetWidth && y + spriteHeight <= sheetHeight) {
+            frames.push({ x, y, w: spriteWidth, h: spriteHeight, col, row });
+          }
+        }
+      }
+    } else {
+      console.warn(`Unknown frame order "${order}" for sprite sheet "${id}".`);
+    }
+
+    spriteFramesMap[id] = frames;
+    console.log(`Sprite sheet "${id}" loaded with ${frames.length} frames.`);
+  };
+}
+
+export function getSpawnGlobalFrameIndex(theme, frameIndex) {
+  const themeData = SPAWN_THEMES[theme];
+  if (!themeData) throw new Error(`Unknown theme: ${theme}`);
+
+  const { column, framesPerColumn } = themeData;
+
+  if (frameIndex < 0 || frameIndex >= framesPerColumn) {
+    throw new Error(`Invalid frameIndex: ${frameIndex} for theme: ${theme}`);
+  }
+
+  return column * framesPerColumn + frameIndex;
+}
 
 export const urlCustomMouseCursorNormal = './assets/mouse/mouseCrosshair.png';
 export const urlCustomMouseCursorHoverLemming = './assets/mouse/mouseHoverLemming.png';
@@ -148,7 +286,8 @@ export const lemmingLevelData = {
             "minerTool": 10,
             "diggerTool": 15
         },
-        facing: 'right'
+        facing: 'right',
+        theme: 'desert'
     }
 }
 
@@ -249,32 +388,11 @@ let paintMode = false;
 let scrollLeft = false;
 let scrollRight = false;
 let isPainting = false;
+let levelStarted = false;
+let spawnOpenedForLevel = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
-
-export function loadSpriteSheet(id, src, spriteWidth = SPRITE_WIDTH, spriteHeight = SPRITE_HEIGHT, sheetWidth = SHEET_WIDTH, sheetHeight = SHEET_HEIGHT) {
-    const img = new Image();
-    img.src = src;
-    spriteSheets[id] = img;
-
-    img.onload = () => {
-        const frames = [];
-        for (let row = 0; row < sheetHeight / spriteHeight; row++) {
-            for (let col = 0; col < sheetWidth / spriteWidth; col++) {
-                frames.push({
-                    x: col * spriteWidth,
-                    y: row * spriteHeight,
-                    w: spriteWidth,
-                    h: spriteHeight
-                });
-            }
-        }
-
-        spriteFramesMap[id] = frames;
-        console.log(`Sprite sheet "${id}" loaded with ${frames.length} frames.`);
-    };
-}
 
 //GETTER SETTER METHODS
 export function setElements() {
@@ -674,4 +792,20 @@ export function setLastPaintClickLocation({ x, y }) {
 
 export function getLastPaintClickLocation() {
   return lastPaintClickLocation;
+}  
+
+export function setLevelStarted(value) {
+  levelStarted = value;
+}  
+
+export function getLevelStarted() {
+  return levelStarted;
+}  
+
+export function setSpawnOpenedForLevel(value) {
+  spawnOpenedForLevel = value;
+}  
+
+export function getSpawnOpenedForLevel() {
+  return spawnOpenedForLevel = value;
 }  
