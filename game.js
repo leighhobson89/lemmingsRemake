@@ -3,6 +3,7 @@ import {
 } from './localization.js';
 import {
 	SPAWN_THEMES,
+	EXITS_THEMES,
 	getLevelStarted,
 	getSpawnOpenedForLevel,
 	setSpawnOpenedForLevel,
@@ -103,6 +104,8 @@ let activeExplosionParticles = 0;
 let solidGroundMap = null;
 let spawnAnimationFrame = 0;
 let spawnAnimationTimer = 0;
+let exitAnimationFrame = 0;
+let exitAnimationTimer = 0;
 
 export async function startGame() {
 	const canvas = getElements().canvas;
@@ -248,6 +251,7 @@ export function gameLoop(time = 0) {
 
 		if (gameState === getGameVisibleActive()) {
 			drawSpawnAnimation(ctx, deltaTime, levelData);
+			drawExitAnimation(ctx, deltaTime, detectedObjects.lemmingExits, levelData);
 			if (getLemmingsReleased() < getNumberOfLemmingsForCurrentLevel()) {
 				releaseLemmings(deltaTime);
 			}
@@ -1360,6 +1364,50 @@ export function drawSpawnFrame(ctx, theme, frameIndex, destX, destY, scale = 2) 
     spriteHeight,
     destX - spriteWidth + 10,
     destY - 30,
+    spriteWidth * scale,
+    spriteHeight * scale
+  );
+}
+
+function drawExitAnimation(ctx, deltaTime, lemmingExits, levelData) {
+  const theme = levelData.theme;
+  if (!theme || !lemmingExits || lemmingExits.length === 0) return;
+
+  const cameraX = getCameraX();
+  const Y_SCALE = 0.8;
+
+  exitAnimationTimer += deltaTime;
+  if (exitAnimationTimer > 100) {
+    exitAnimationFrame = (exitAnimationFrame + 1) % 6;
+    exitAnimationTimer = 0;
+  }
+
+  lemmingExits.forEach(exit => {
+    const centerX = (exit.minX + exit.maxX) / 2 - cameraX;
+    const centerY = ((exit.minY * Y_SCALE) + (exit.maxY * Y_SCALE)) / 2;
+
+    drawExitFrame(ctx, theme, exitAnimationFrame, centerX, centerY);
+  });
+}
+
+export function drawExitFrame(ctx, theme, frameIndex, destX, destY, scale = 4) {
+  const sheet = spriteSheets['exits'];
+  const themeData = EXITS_THEMES[theme];
+  if (!sheet || !themeData) return;
+
+  const { column, spriteWidth, spriteHeight, horizontalGap } = themeData;
+
+  const sx = column * (spriteWidth + horizontalGap);
+  const sy = frameIndex * spriteHeight;
+
+  ctx.drawImage(
+    sheet,
+    sx,
+    sy,
+    spriteWidth,
+    spriteHeight,
+    destX - spriteWidth - 15,
+    destY - 40,
     spriteWidth * scale,
     spriteHeight * scale
   );

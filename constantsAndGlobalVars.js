@@ -90,6 +90,65 @@ export const boomingAreaFrames = [
     ]
 ];
 
+export const EXIT_SPRITE_WIDTH = 40;
+export const EXIT_SPRITE_HEIGHT = 25;
+export const EXITS_SPRITE_SHEET_WIDTH = 171;
+export const EXITS_SPRITE_SHEET_HEIGHT = 150;
+export const EXITS_SPRITE_SHEET_COLUMNS = Math.floor(EXITS_SPRITE_SHEET_WIDTH / (EXIT_SPRITE_WIDTH + 2));
+export const EXITS_SPRITE_SHEET_FRAMES_PER_COLUMN = 6;
+
+export const EXITS_THEMES = {
+  desert: {
+    column: 0,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  ocean: {
+    column: 1,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  industrial: {
+    column: 2,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  forest: {
+    column: 3,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  candy: {
+    column: 0,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  autumn: {
+    column: 1,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+  classic: {
+    column: 2,
+    framesPerColumn: 6,
+    spriteWidth: EXIT_SPRITE_WIDTH,
+    spriteHeight: EXIT_SPRITE_HEIGHT,
+    horizontalGap: 2,
+  },
+};
+
 export const SPAWN_SPRITE_WIDTH = 82;
 export const SPAWN_SPRITE_HEIGHT = 50;
 export const SPAWNS_SPRITE_SHEET_WIDTH = 600;
@@ -168,6 +227,18 @@ loadSpriteSheet('spawns', './assets/sprites/spawnsSprites.png',
     horizontalGap: 4,
     columns: Object.keys(SPAWN_THEMES).length,
     framesPerColumn: 10,
+    order: 'column',
+  }
+);
+loadSpriteSheet('exits', './assets/sprites/exitsSprites.png',
+  EXIT_SPRITE_WIDTH,
+  EXIT_SPRITE_HEIGHT,
+  EXITS_SPRITE_SHEET_WIDTH,
+  EXITS_SPRITE_SHEET_HEIGHT,
+  {
+    horizontalGap: 2,
+    columns: 4,
+    framesPerColumn: 6,
     order: 'column',
   }
 );
@@ -287,7 +358,7 @@ export const lemmingLevelData = {
             "diggerTool": 15
         },
         facing: 'right',
-        theme: 'classic'
+        theme: 'industrial'
     }
 }
 
