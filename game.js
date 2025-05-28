@@ -2,6 +2,8 @@ import {
 	localize
 } from './localization.js';
 import {
+	spriteFramesMap,
+	spriteSheets,
 	BUILDER_SLAB_COLOR,
 	MAX_EXPLOSION_PARTICLES,
 	COLLISION_GRID_CELL_SIZE,
@@ -22,8 +24,6 @@ import {
 	getCurrentTool,
 	RELEASE_RATE_BALANCER,
 	FRAMES_PER_ROW,
-	spriteSheet,
-	spriteFrames,
 	setNumberOfLemmingsForCurrentLevel,
 	getNumberOfLemmingsForCurrentLevel,
 	setLemmingsRescued,
@@ -247,7 +247,8 @@ export function gameLoop(time = 0) {
 				if (lemming.active) {
           moveLemmingInstance(lemming);
           applyGravity(lemming);
-					if (lemming.nukeActive) {
+					if (lemming.nukeActive && lemming.state !== 'exploding' && lemming.state !== 'booming' && lemming.state !== 'disintegrating'
+					) {
 						lemming.countdownActive = true;
 					}
 				}
@@ -322,13 +323,13 @@ export function gameLoop(time = 0) {
 					spriteIndex = rowNumber * FRAMES_PER_ROW + (col * 2);
 				}
 
-				drawInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
+				drawLemmingInstances(ctx, lemming.x, lemming.y, lemming.width, lemming.height, 'lemming', 'green', spriteIndex, lemming);
 			}
 		}
 
 		const staticEnemies = getStaticEnemies();
 		ctx.imageSmoothingEnabled = false;
-		drawInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red', null);
+		drawLemmingInstances(ctx, staticEnemies.x, staticEnemies.y, staticEnemies.width, staticEnemies.height, 'enemy', 'red', null);
 		const allInactive = getNumberOfLemmingsForCurrentLevel() === getLemmingsReleased() && getLemmingsObjects().every(l => !l.active);
 		if (allInactive) {
 			//console.log('All lemmings are now inactive - can end level');
@@ -1001,39 +1002,56 @@ function checkAllCollisions() {
 }
 
 function drawFloatingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
-	const frameWidth = spriteFrames[0].w;
-	const frameHeight = spriteFrames[0].h;
+    const frames = spriteFramesMap['lemmings'];
+    const sheet = spriteSheets['lemmings'];
 
-	const frameX = (frameIndex % 8) * frameWidth;
-	const topRowY = 6 * frameHeight;
-	const bottomRowY = 7 * frameHeight;
+    if (!frames || !sheet) {
+        console.warn('Default sprite sheet not loaded yet.');
+        return;
+    }
 
-	ctx.drawImage(
-		spriteSheet,
-		frameX,
-		topRowY,
-		frameWidth,
-		frameHeight,
-		x - cameraX,
-		y - height,
-		width,
-		height
-	);
+    const frameWidth = frames[0].w;
+    const frameHeight = frames[0].h;
 
-	ctx.drawImage(
-		spriteSheet,
-		frameX,
-		bottomRowY,
-		frameWidth,
-		frameHeight,
-		x - cameraX,
-		y,
-		width,
-		height
-	);
+    const frameX = (frameIndex % 8) * frameWidth;
+    const topRowY = 6 * frameHeight;
+    const bottomRowY = 7 * frameHeight;
+
+    ctx.drawImage(
+        sheet,
+        frameX,
+        topRowY,
+        frameWidth,
+        frameHeight,
+        x - cameraX,
+        y - height,
+        width,
+        height
+    );
+
+    ctx.drawImage(
+        sheet,
+        frameX,
+        bottomRowY,
+        frameWidth,
+        frameHeight,
+        x - cameraX,
+        y,
+        width,
+        height
+    );
 }
 
+
 function drawBoomingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
+	const frames = spriteFramesMap['lemmings'];
+	const sheet = spriteSheets['lemmings'];
+
+	if (!frames || !sheet) {
+		console.warn('Default sprite sheet not loaded yet.');
+		return;
+	}
+
 	const frame = getBoomingAreaFrames()[frameIndex];
 
 	for (let row = 0; row < frame.length; row++) {
@@ -1042,15 +1060,14 @@ function drawBoomingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
 			if (tileCol === null) continue;
 
 			const spriteIndex = (row * FRAMES_PER_ROW) + tileCol;
-			const sprite = spriteFrames[spriteIndex];
+			const sprite = frames[spriteIndex];
 			if (!sprite) continue;
 
-			// Calculate draw position relative to center
 			const drawX = x + (col - 1) * width - cameraX;
 			const drawY = y + (row - 1) * height;
 
 			ctx.drawImage(
-				spriteSheet,
+				sheet,
 				sprite.x, sprite.y,
 				sprite.w, sprite.h,
 				drawX, drawY,
@@ -1061,15 +1078,23 @@ function drawBoomingLemming(ctx, x, y, width, height, frameIndex, cameraX) {
 }
 
 function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex, cameraX, state) {
+	const frames = spriteFramesMap['lemmings'];
+	const sheet = spriteSheets['lemmings'];
+
+	if (!frames || !sheet) {
+		console.warn('Default sprite sheet not loaded yet.');
+		return;
+	}
+
 	const col = getCountdownAreaFrames()[countdownIndex];
 	const row = 4;
 
 	const spriteIndex = row * FRAMES_PER_ROW + col;
-	const sprite = spriteFrames[spriteIndex];
+	const sprite = frames[spriteIndex];
 	if (!sprite) return;
 
 	ctx.drawImage(
-		spriteSheet,
+		sheet,
 		sprite.x, sprite.y,
 		sprite.w, sprite.h,
 		x - cameraX,
@@ -1079,81 +1104,96 @@ function drawCountdownMarkerOverLemming(ctx, x, y, width, height, countdownIndex
 	);
 }
 
-function drawMiningLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
-  let rows;
-  if (facing === "right") {
-    rows = [22, 24];
-  } else {
-    rows = [26, 28];
-  }
+function drawMiningLemming(ctx, x, y, width, height, frameIndex, facing, cameraX, sheetId = 'lemmings') {
+	const frames = spriteFramesMap[sheetId];
+	const sheet = spriteSheets[sheetId];
 
-  const framesPerRow = 9;
-  const rowIndex = Math.floor(frameIndex / framesPerRow);
-  const colIndex = frameIndex % framesPerRow;
+	if (!frames || !sheet) {
+		console.warn(`Sprite sheet "${sheetId}" not loaded.`);
+		return;
+	}
 
-  const bottomRightRow = rows[rowIndex];
-  const bottomRightCol = colIndex * 2 + 1;
+	let rows;
+	if (facing === "right") {
+		rows = [22, 24];
+	} else {
+		rows = [26, 28];
+	}
 
-  const bottomRightIndex = bottomRightRow * FRAMES_PER_ROW + bottomRightCol;
-  const topLeftIndex = bottomRightIndex - FRAMES_PER_ROW - 1;
-  const topRightIndex = bottomRightIndex - FRAMES_PER_ROW;
-  const bottomLeftIndex = bottomRightIndex - 1;
-  
-  const topLeftFrame = spriteFrames[topLeftIndex];
-  const topRightFrame = spriteFrames[topRightIndex];
-  const bottomLeftFrame = spriteFrames[bottomLeftIndex];
-  const bottomRightFrame = spriteFrames[bottomRightIndex];
+	const framesPerRow = 9;
+	const rowIndex = Math.floor(frameIndex / framesPerRow);
+	const colIndex = frameIndex % framesPerRow;
 
-  if (!topLeftFrame || !topRightFrame || !bottomLeftFrame || !bottomRightFrame)
-    return;
+	const bottomRightRow = rows[rowIndex];
+	const bottomRightCol = colIndex * 2 + 1;
 
-  ctx.drawImage(
-    spriteSheet,
-    topLeftFrame.x,
-    topLeftFrame.y,
-    topLeftFrame.w,
-    topLeftFrame.h,
-    x - width - cameraX,
-    y - height,
-    width,
-    height
-  );
-  ctx.drawImage(
-    spriteSheet,
-    topRightFrame.x,
-    topRightFrame.y,
-    topRightFrame.w,
-    topRightFrame.h,
-    x - cameraX,
-    y - height,
-    width,
-    height
-  );
-  ctx.drawImage(
-    spriteSheet,
-    bottomLeftFrame.x,
-    bottomLeftFrame.y,
-    bottomLeftFrame.w,
-    bottomLeftFrame.h,
-    x - width - cameraX,
-    y,
-    width,
-    height
-  );
-  ctx.drawImage(
-    spriteSheet,
-    bottomRightFrame.x,
-    bottomRightFrame.y,
-    bottomRightFrame.w,
-    bottomRightFrame.h,
-    x - cameraX,
-    y,
-    width,
-    height
-  );
-}  
+	const bottomRightIndex = bottomRightRow * FRAMES_PER_ROW + bottomRightCol;
+	const topLeftIndex = bottomRightIndex - FRAMES_PER_ROW - 1;
+	const topRightIndex = bottomRightIndex - FRAMES_PER_ROW;
+	const bottomLeftIndex = bottomRightIndex - 1;
 
-function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, cameraX) {
+	const topLeftFrame = frames[topLeftIndex];
+	const topRightFrame = frames[topRightIndex];
+	const bottomLeftFrame = frames[bottomLeftIndex];
+	const bottomRightFrame = frames[bottomRightIndex];
+
+	if (!topLeftFrame || !topRightFrame || !bottomLeftFrame || !bottomRightFrame) return;
+
+	ctx.drawImage(
+		sheet,
+		topLeftFrame.x,
+		topLeftFrame.y,
+		topLeftFrame.w,
+		topLeftFrame.h,
+		x - width - cameraX,
+		y - height,
+		width,
+		height
+	);
+	ctx.drawImage(
+		sheet,
+		topRightFrame.x,
+		topRightFrame.y,
+		topRightFrame.w,
+		topRightFrame.h,
+		x - cameraX,
+		y - height,
+		width,
+		height
+	);
+	ctx.drawImage(
+		sheet,
+		bottomLeftFrame.x,
+		bottomLeftFrame.y,
+		bottomLeftFrame.w,
+		bottomLeftFrame.h,
+		x - width - cameraX,
+		y,
+		width,
+		height
+	);
+	ctx.drawImage(
+		sheet,
+		bottomRightFrame.x,
+		bottomRightFrame.y,
+		bottomRightFrame.w,
+		bottomRightFrame.h,
+		x - cameraX,
+		y,
+		width,
+		height
+	);
+}
+
+function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, cameraX, sheetId = 'lemmings') {
+	const frames = spriteFramesMap[sheetId];
+	const sheet = spriteSheets[sheetId];
+
+	if (!frames || !sheet) {
+		console.warn(`Sprite sheet "${sheetId}" not loaded.`);
+		return;
+	}
+
 	let row;
 	let rowOffset;
 
@@ -1166,12 +1206,12 @@ function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, camera
 	}
 
 	const spriteIndex = row * FRAMES_PER_ROW + rowOffset;
-	const frame = spriteFrames[spriteIndex];
+	const frame = frames[spriteIndex];
 
 	if (!frame) return;
 
 	ctx.drawImage(
-		spriteSheet,
+		sheet,
 		frame.x, frame.y,
 		frame.w, frame.h,
 		x - cameraX,
@@ -1181,47 +1221,55 @@ function drawBashingLemming(ctx, x, y, width, height, frameIndex, facing, camera
 	);
 }
 
-function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null) {
+function drawLemmingInstances(ctx, x, y, width, height, type, color, spriteIndex = null, lemmingObject = null, sheetId = 'lemmings') {
 	const cameraX = getCameraX();
 
+	const frames = spriteFramesMap[sheetId];
+	const sheet = spriteSheets[sheetId];
+
+	if (!frames || !sheet) {
+		console.warn(`Sprite sheet "${sheetId}" not loaded.`);
+		return;
+	}
+
 	if (type === 'lemming') {
-		if (spriteIndex !== null && spriteFrames[spriteIndex]) {
+		if (spriteIndex !== null && frames[spriteIndex]) {
 			if (lemmingObject && (lemmingObject.state === 'floating' || lemmingObject.state === 'floatingLanding')) {
-				drawFloatingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX);
-			} else if (lemmingObject && (lemmingObject.state === 'booming')) {
-				drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex ?? 0, cameraX);
+				drawFloatingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, cameraX, sheetId);
+			} else if (lemmingObject && lemmingObject.state === 'booming') {
+				drawBoomingLemming(ctx, x, y, width, height, lemmingObject.frameIndex ?? 0, cameraX, sheetId);
 			} else if (lemmingObject && lemmingObject.state === 'bashing') {
-				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
-			} else if (lemmingObject && lemmingObject.state === 'bashing') {
-				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
-			} else if (lemmingObject && lemmingObject.state === "mining") {
-				drawMiningLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX);
-      		} else {
-        if (lemmingObject && lemmingObject.countdownActive) {
-          drawCountdownMarkerOverLemming(
-            ctx,
-            x,
-            y,
-            width,
-            height,
-            lemmingObject.countdownFrameIndex,
-            cameraX,
-            lemmingObject.state
-          );
-        }
-        const frame = spriteFrames[spriteIndex];
-        ctx.drawImage(
-          spriteSheet,
-          frame.x,
-          frame.y,
-          frame.w,
-          frame.h,
-          x - cameraX,
-          y,
-          width,
-          height
-        );
-      }
+				drawBashingLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX, sheetId);
+			} else if (lemmingObject && lemmingObject.state === 'mining') {
+				drawMiningLemming(ctx, x, y, width, height, lemmingObject.frameIndex, lemmingObject.facing, cameraX, sheetId);
+			} else {
+				if (lemmingObject && lemmingObject.countdownActive) {
+					drawCountdownMarkerOverLemming(
+						ctx,
+						x,
+						y,
+						width,
+						height,
+						lemmingObject.countdownFrameIndex,
+						cameraX,
+						lemmingObject.state,
+						sheetId
+					);
+				}
+
+				const frame = frames[spriteIndex];
+				ctx.drawImage(
+					sheet,
+					frame.x,
+					frame.y,
+					frame.w,
+					frame.h,
+					x - cameraX,
+					y,
+					width,
+					height
+				);
+			}
 		} else {
 			ctx.fillStyle = color;
 			ctx.fillRect(x - cameraX, y, width, height);
@@ -1245,17 +1293,12 @@ function drawInstances(ctx, x, y, width, height, type, color, spriteIndex = null
 	} else if (type === 'enemy') {
 		ctx.fillStyle = color;
 		ctx.beginPath();
-		ctx.arc(
-			100,
-			280,
-			width / 2,
-			0,
-			Math.PI * 2
-		);
+		ctx.arc(100, 280, width / 2, 0, Math.PI * 2);
 		ctx.closePath();
 		ctx.fill();
 	}
 }
+
 
 function rectsOverlap(r1, r2) {
 	return !(r2.x > r1.x + r1.width ||

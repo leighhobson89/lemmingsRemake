@@ -88,6 +88,8 @@ export const boomingAreaFrames = [
         [null, 18, null]
     ]
 ];
+export const spriteSheets = {};
+export const spriteFramesMap = {};
 export const countdownAreaFrames = [8, 9, 10, 11, 12];
 export const SPRITE_WIDTH = 8;
 export const SPRITE_HEIGHT = 10;
@@ -96,25 +98,8 @@ export const SHEET_HEIGHT = 400;
 export const FRAMES_PER_ROW = SHEET_WIDTH / SPRITE_WIDTH;
 export const RELEASE_RATE_BALANCER = 5;
 
-export const spriteSheet = new Image();
-spriteSheet.src = './assets/sprites/spritesheet.png';
-
-export const spriteFrames = [];
-
-spriteSheet.onload = () => {
-    for (let row = 0; row < SHEET_HEIGHT / SPRITE_HEIGHT; row++) {
-        for (let col = 0; col < SHEET_WIDTH / SPRITE_WIDTH; col++) {
-            spriteFrames.push({
-                x: col * SPRITE_WIDTH,
-                y: row * SPRITE_HEIGHT,
-                w: SPRITE_WIDTH,
-                h: SPRITE_HEIGHT
-            });
-        }
-    }
-
-    console.log('Sprite cache ready:', spriteFrames.length, 'frames');
-};
+loadSpriteSheet('lemmings', './assets/sprites/spriteSheet.png');
+loadSpriteSheet('terrain', './assets/sprites/terrainSprites.png');
 
 export const urlCustomMouseCursorNormal = './assets/mouse/mouseCrosshair.png';
 export const urlCustomMouseCursorHoverLemming = './assets/mouse/mouseHoverLemming.png';
@@ -267,6 +252,29 @@ let isPainting = false;
 
 let autoSaveOn = false;
 export let pauseAutoSaveCountdown = true;
+
+export function loadSpriteSheet(id, src, spriteWidth = SPRITE_WIDTH, spriteHeight = SPRITE_HEIGHT, sheetWidth = SHEET_WIDTH, sheetHeight = SHEET_HEIGHT) {
+    const img = new Image();
+    img.src = src;
+    spriteSheets[id] = img;
+
+    img.onload = () => {
+        const frames = [];
+        for (let row = 0; row < sheetHeight / spriteHeight; row++) {
+            for (let col = 0; col < sheetWidth / spriteWidth; col++) {
+                frames.push({
+                    x: col * spriteWidth,
+                    y: row * spriteHeight,
+                    w: spriteWidth,
+                    h: spriteHeight
+                });
+            }
+        }
+
+        spriteFramesMap[id] = frames;
+        console.log(`Sprite sheet "${id}" loaded with ${frames.length} frames.`);
+    };
+}
 
 //GETTER SETTER METHODS
 export function setElements() {
