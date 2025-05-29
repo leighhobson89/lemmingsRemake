@@ -1403,24 +1403,25 @@ export function drawExitFrame(ctx, theme, frameIndex, destX, destY, scale = 4) {
   const sx = column * (spriteWidth + horizontalGap);
   const sy = frameIndex * spriteHeight;
 
+  const scaledWidth = spriteWidth * scale;
+  const scaledHeight = spriteHeight * scale;
+
+  const drawX = Math.round(destX - scaledWidth / 2);
+  const drawY = Math.round(destY - scaledHeight / 2);
+
   ctx.drawImage(
     sheet,
     sx,
     sy,
     spriteWidth,
     spriteHeight,
-    destX - spriteWidth - 15,
-    destY,
-    spriteWidth * scale,
-    spriteHeight * scale
+    drawX,
+    drawY,
+    scaledWidth,
+    scaledHeight
   );
 
-  const scaledWidth = spriteWidth * scale;
-  const scaledHeight = spriteHeight * scale;
-
-  const screenDrawX = Math.round(destX - spriteWidth - 15);
-  const drawY = Math.round(destY - 40);
-  const worldDrawX = screenDrawX + getCameraX();
+  const worldDrawX = drawX + getCameraX();
 
   for (let y = 0; y < scaledHeight; y++) {
     for (let x = 0; x < scaledWidth; x++) {
@@ -1438,7 +1439,6 @@ export function drawExitFrame(ctx, theme, frameIndex, destX, destY, scale = 4) {
     }
   }
 }
-
 
 function rectsOverlap(r1, r2) {
 	return !(r2.x > r1.x + r1.width ||
@@ -1498,13 +1498,11 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
 			};
 			if (rectsOverlap(lemmingRect, exitRect)) {
 				setLemmingsRescued();
-				//console.log(`Lemming ${lemming.name} reached the exit, now rescued ${getLemmingsRescued()} out of a possible ${getNumberOfLemmingsForCurrentLevel()}`);
 				lemming.active = false;
 			}
 		}
 
-		if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') { // TO CHECK FOR MINING
-			// Use the grid to only check nearby lemmings
+		if (lemming.state === 'walking' || lemming.state === 'building' || lemming.state === 'mining') {
 			const cellX = Math.floor(lemming.x / COLLISION_GRID_CELL_SIZE);
 			const cellY = Math.floor(lemming.y / COLLISION_GRID_CELL_SIZE);
 
@@ -1535,28 +1533,52 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
 							height: other.height
 						};
 
-            const leftCollision = rectsOverlap(lemmingRect, collisionBoxLeft);
-            const rightCollision = rectsOverlap(lemmingRect, collisionBoxRight);
+						const leftCollision = rectsOverlap(lemmingRect, collisionBoxLeft);
+						const rightCollision = rectsOverlap(lemmingRect, collisionBoxRight);
 
-            if (leftCollision && rightCollision && lemming.state === 'walking') {
-                // Stuck between two blockers — force nudge
-                const shift = (lemming.facing === 'right') ? 24 : -24;
-                lemming.x += shift;
-                console.log(`Lemming ${lemming.name} auto-pushed ${shift > 0 ? 'right' : 'left'} to escape blocker sandwich`);
-                break outer;
-            } else if (leftCollision || rightCollision) {
-                // Normal wall bounce behavior
-                lemming.facing = (lemming.facing === 'left') ? 'right' : 'left';
-                lemming.dx = -lemming.dx;
-                lemming.x += (lemming.facing === 'left') ? -2 : 2;
-                break outer;
-            }
+						function horizontalOverlap(r1, r2) {
+							const left = Math.max(r1.x, r2.x);
+							const right = Math.min(r1.x + r1.width, r2.x + r2.width);
+							return Math.max(0, right - left);
+						}
+
+						const leftOverlap = horizontalOverlap(lemmingRect, collisionBoxLeft);
+						const rightOverlap = horizontalOverlap(lemmingRect, collisionBoxRight);
+
+						const overlapThreshold = lemming.width * 0.2;
+
+						if (leftCollision) {
+							if (leftOverlap > overlapThreshold && lemming.state === 'walking') {
+								lemming.x += 24;
+								lemming.facing = 'left';
+								console.log(`Lemming ${lemming.name} auto-pushed right to escape large left blocker overlap`);
+								break outer;
+							} else {
+								lemming.facing = 'left';
+								lemming.dx = -lemming.dx;
+								lemming.x += -2;
+								break outer;
+							}
+							} else if (rightCollision) {
+							if (rightOverlap > overlapThreshold && lemming.state === 'walking') {
+								lemming.x += -24;
+								lemming.facing = 'right';
+								console.log(`Lemming ${lemming.name} auto-pushed left to escape large right blocker overlap`);
+								break outer;
+							} else {
+								lemming.facing = 'right';
+								lemming.dx = -lemming.dx;
+								lemming.x += 2;
+								break outer;
+							}
+						}
 					}
 				}
 			}
 		}
 	}
 }
+
 
 function buildLemmingGrid(lemmings) {
 	const grid = new Map();
@@ -2246,6 +2268,8 @@ export function handleLemmingClick(lemming) {
         if (lemming.state === newState) {
             return;
         }
+
+		lemming.buildingSlabs = 0;
 
         lemming.state = newState;
         if (newState === 'blocking') {
