@@ -253,7 +253,7 @@ export function gameLoop(time = 0) {
 			drawSpawnAnimation(ctx, deltaTime, levelData);
 			drawExitAnimation(ctx, deltaTime, detectedObjects.lemmingExits, levelData);
 			if (getDebugMode()) {
-				drawNonSolidOverlayDebug(ctx);
+				//drawNonSolidOverlayDebug(ctx);
 			}
 			if (getLemmingsReleased() < getNumberOfLemmingsForCurrentLevel()) {
 				releaseLemmings(deltaTime);
@@ -1377,7 +1377,7 @@ function drawExitAnimation(ctx, deltaTime, lemmingExits, levelData) {
   if (!theme || !lemmingExits || lemmingExits.length === 0) return;
 
   const cameraX = getCameraX();
-  const Y_SCALE = 0.8;
+  const Y_SCALE = 1;
 
   exitAnimationTimer += deltaTime;
   if (exitAnimationTimer > 100) {
@@ -1416,7 +1416,7 @@ export function drawExitFrame(ctx, theme, frameIndex, destX, destY, scale = 4) {
     spriteWidth,
     spriteHeight,
     drawX,
-    drawY,
+    drawY - 25,
     scaledWidth,
     scaledHeight
   );
@@ -1460,8 +1460,8 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
 		};
 
 		for (const enemy of detectedObjects.enemiesAir) {
-			const scaledMinY = enemy.minY * 0.8;
-			const scaledMaxY = enemy.maxY * 0.8;
+			const scaledMinY = enemy.minY;
+			const scaledMaxY = enemy.maxY;
 			const enemyRect = {
 				x: enemy.minX,
 				y: scaledMinY,
@@ -1474,8 +1474,8 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
 		}
 
 		for (const enemy of detectedObjects.enemiesGround) {
-			const scaledMinY = enemy.minY * 0.8;
-			const scaledMaxY = enemy.maxY * 0.8;
+			const scaledMinY = enemy.minY;
+			const scaledMaxY = enemy.maxY;
 			const enemyRect = {
 				x: enemy.minX,
 				y: scaledMinY,
@@ -1488,8 +1488,8 @@ function checkLemmingVersusNonSurfaceCollisions(lemmings) {
 		}
 
 		for (const exit of detectedObjects.lemmingExits) {
-			const scaledMinY = exit.minY * 0.8;
-			const scaledMaxY = exit.maxY * 0.8;
+			const scaledMinY = exit.minY;
+			const scaledMaxY = exit.maxY;
 			const exitRect = {
 				x: exit.minX,
 				y: scaledMinY,
@@ -2130,7 +2130,7 @@ export function updateCollisionPixels() {
 function drawDetectedObjects(ctx, detectedObjects) {
 	const cameraX = getCameraX();
 	const radius = 20;
-	const Y_SCALE = 0.8;
+	const Y_SCALE = 1;
 
 	detectedObjects.enemiesAir.forEach(enemy => {
 		const centerX = (enemy.minX + enemy.maxX) / 2 - cameraX;
