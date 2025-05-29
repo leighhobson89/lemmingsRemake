@@ -2016,6 +2016,30 @@ function turnLemmingIfCollidesWithWall(lemming) {
 
 function adjustLemmingHeight(lemming) {
     const height = lemming.height;
+	
+	if (lemming.state === 'walking') {
+		const centerX = Math.floor(lemming.x + lemming.width / 2);
+		const centerY = Math.floor(lemming.y + height / 2);
+
+		let solidCount = 0;
+		const requiredSolidCount = 5;
+
+		for (let dx = -3; dx <= 3; dx++) {
+			for (let dy = -3; dy <= 3; dy++) {
+				const sampleX = centerX + dx;
+				const sampleY = centerY + dy;
+				const pixel = getPixelColor(sampleX, sampleY);
+				if (isSolidPixel(sampleX, sampleY, pixel)) {
+					solidCount++;
+					if (solidCount >= requiredSolidCount) {
+						lemming.y -= 2;
+						return;
+					}
+				}
+			}
+		}
+	}
+
     const checkHeight = Math.max(1, Math.floor(height * 0.1));
     const bottomY = Math.floor(lemming.y + height);
 
